@@ -1,0 +1,13 @@
+.combo-list { list-style: none; padding: 0; margin: 0; }
+.combo-list li {
+  background: #f8f9fb; border: 1px solid #e3e7ec;
+  border-radius: 6px; padding: 8px 10px;
+  margin-bottom: 8px; line-height: 1.6; font-size: 13px;
+}
+.combo-list .combo-idx { color: #999; font-size: 11px; }
+.combo-list .mov { color: #2c3e50; font-weight: 500; }
+.combo-list .beat { color: #27ae60; font-size: 12px; }
+.combo-list .arrow { color: #b0b8c1; margin: 0 4px; }
+.combo-list .square-mark { color: #27ae60; font-size: 11px; margin-left: 4px; }
+
+.empty-hint { color: #999; font-style: italic; padding: 8px 0; }

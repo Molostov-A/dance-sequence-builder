@@ -1,0 +1,22 @@
+.mov-list { list-style: none; padding: 0; margin: 0 0 10px; }
+.mov-list li { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 4px; }
+.mov-list li:hover, .mov-list li:active { background: #f0f2f5; }
+.mov-list .name { flex: 1; word-break: break-word; }
+.mov-list .count {
+  font-size: 11px; color: #999; background: #eef1f4;
+  padding: 1px 6px; border-radius: 8px;
+}
+
+.icon-btn {
+  background: none; border: none; cursor: pointer;
+  color: #888; font-size: 15px; padding: 4px 7px;
+  border-radius: 3px; line-height: 1; min-width: 30px;
+}
+.icon-btn:active { background: #e0e4e8; color: #333; }
+.icon-btn.danger:active { background: #fde8e8; color: #c0392b; }
+
+.add-mov-row { display: flex; gap: 6px; margin-top: 8px; }
+.add-mov-row input {
+  flex: 1; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 16px; min-width: 0;
+}

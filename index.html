@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+<title>Конструктор танцевальных связок</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/library.css">
+<link rel="stylesheet" href="css/tree.css">
+<link rel="stylesheet" href="css/form.css">
+<link rel="stylesheet" href="css/combo.css">
+<link rel="stylesheet" href="css/modal.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<header>
+  <h1>💃 Связки</h1>
+  <div class="spacer"></div>
+  <button id="btnAddRoot">+ Связка</button>
+  <button id="btnExportCombos" class="alt">Экспорт комб.</button>
+  <button id="btnExportAll">Экспорт всего</button>
+  <button id="btnImport" class="danger">Импорт</button>
+  <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+</header>
+
+<main>
+  <section class="panel" id="libPanel">
+    <div class="panel-header" data-toggle-panel="libPanel">
+      <span>Библиотека движений <span id="libCount" class="panel-count lib"></span></span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="panel-body">
+      <ul class="mov-list" id="movList"></ul>
+      <div class="add-mov-row">
+        <input type="text" id="newMovInput" placeholder="Новое движение">
+        <button class="btn" id="btnAddMovement">+</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="treePanel">
+    <div class="panel-header" data-toggle-panel="treePanel">
+      <span>Дерево связок</span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="panel-body tree-body">
+      <div id="rootsBar"></div>
+      <div id="breadcrumb"></div>
+      <div id="treeWrap">
+        <div id="treeInner">
+          <svg id="linesSvg"></svg>
+          <div id="nodesLayer"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="comboPanel">
+    <div class="panel-header" data-toggle-panel="comboPanel">
+      <span>Комбинации <span id="comboCount" class="panel-count combo"></span></span>
+      <span class="chev">▾</span>
+    </div>
+    <div class="panel-body">
+      <div id="combosContainer"></div>
+    </div>
+  </section>
+</main>
+
+<div id="formLayer" class="hidden"></div>
+
+<div class="modal-bg" id="exportModal">
+  <div class="modal">
+    <h3>Экспорт JSON</h3>
+    <p class="hint">Если файл не скачался автоматически — скопируйте текст ниже.</p>
+    <textarea id="exportText" readonly></textarea>
+    <div class="actions">
+      <button class="btn" id="btnCopyExport">Копировать</button>
+      <button class="btn secondary" id="btnCloseExport">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/constants.js"></script>
+<script src="js/state.js"></script>
+<script src="js/beat.js"></script>
+<script src="js/movements.js"></script>
+<script src="js/nodes.js"></script>
+<script src="js/path.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/form.js"></script>
+<script src="js/tree.js"></script>
+<script src="js/combos.js"></script>
+<script src="js/exports.js"></script>
+<script src="js/panels.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

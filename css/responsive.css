@@ -1,0 +1,22 @@
+@media (max-width: 900px) {
+  main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; gap: 8px; padding: 8px; }
+  header h1 { font-size: 13px; }
+  header button { padding: 6px 8px; font-size: 11px; }
+  .panel { border-radius: 6px; }
+  #treeWrap { min-height: 300px; }
+  #formLayer {
+    position: fixed; left: 8px; right: 8px;
+    top: auto; bottom: 8px; width: auto;
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
+  }
+  .node-card { width: 170px; }
+  .node-card .card-actions .icon-btn { padding: 6px 10px; font-size: 15px; }
+  .mini-card { width: 150px; }
+}
+@media (max-width: 500px) {
+  header { padding: 6px 8px; gap: 6px; }
+  header h1 { font-size: 12px; }
+  header button { padding: 6px 7px; font-size: 11px; }
+  .icon-btn { min-width: 34px; padding: 6px 8px; }
+}
