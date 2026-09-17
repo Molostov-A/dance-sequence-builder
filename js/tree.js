@@ -87,7 +87,13 @@ function renderTree() {
   const activeEl = nodesLayer.querySelector('.node-card.active');
   if (activeEl && activeEl.offsetHeight > 0) activeH = activeEl.offsetHeight;
 
-  const layout = computeLayout({ activeCardH: activeH });
+  const cardHeights = new Map(cardEls.map((el, i) => [first.cards[i].node.id, el.offsetHeight || CARD_H]));
+  const miniHeights = new Map(miniEls.map((el, i) => [first.minis[i].node.id, el.offsetHeight || MINI_H]));
+  const layout = computeLayout({
+    activeCardH: activeH,
+    heightFor: id => cardHeights.get(id) || CARD_H,
+    miniHFor: id => miniHeights.get(id) || MINI_H
+  });
   const { cards, minis, width, height } = layout;
   const w = Math.max(width, 300);
   const h = Math.max(height, 300);
@@ -299,6 +305,7 @@ function renderMiniCard(m) {
 
   const el = document.createElement('div');
   el.className = 'mini-card ' + (m.kind === 'sibling' ? 'sibling' : 'child');
+  el.dataset.nodeId = m.node.id;
   el.style.left = m.x + 'px';
   el.style.top = m.y + 'px';
 

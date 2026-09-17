@@ -11,9 +11,15 @@
    ========================================================= */
 function computeLayout(overrides) {
   // overrides.activeCardH — реальная высота активной карточки (может быть
-  // больше CARD_H из-за бейджа «квадрат» и блока кнопок). Отступы стека
-  // братьев считаются по ней, чтобы активный не перекрывал братьев ниже.
-  const activeCardH = overrides && overrides.activeCardH ? overrides.activeCardH : CARD_H;
+  // больше CARD_H из-за бейджа «квадрат» и кнопок).
+  // overrides.heightFor(id) — реальная высота ЛЮБОЙ карточки/мини (названия
+  // больше не обрезаются и переносятся, поэтому высота замеряется
+  // у каждого элемента и учитывается в отступах стека и продолжений).
+  // overrides.miniHFor(id) — реальная высота компактной карточки.
+  const O = overrides || {};
+  const hFor = O.heightFor || (() => CARD_H);
+  const miniHFor = O.miniHFor || (() => MINI_H);
+  const activeCardH = O.activeCardH || CARD_H;
   const activePath = (state.activePath || []).filter(id => state.nodes[id]);
   if (activePath.length === 0) return { cards: [], minis: [], width: 0, height: 0 };
 
@@ -33,7 +39,7 @@ function computeLayout(overrides) {
   spineNodes.forEach((nodeId, i) => {
     const node = state.nodes[nodeId];
     const x = PAD + i * (CARD_W + H_GAP);
-    cards.push({ node, x, y: spineY, w: CARD_W, h: CARD_H, isActive: false });
+    cards.push({ node, x, y: spineY, w: CARD_W, h: hFor(nodeId), isActive: false });
   });
 
   // ===== 2) СТЕК БРАТЬЕВ =====
@@ -55,11 +61,8 @@ function computeLayout(overrides) {
   } else {
     // Все дети родителя, отсортированные по имени
     const siblings = getChildrenSorted(parentId);
-    // Индекс активного в списке
-    const activeIdx = siblings.findIndex(s => s.id === activeId);
-
     let curY = stackTopY;
-    siblings.forEach((sib, i) => {
+    siblings.forEach(sib => {
       if (sib.id === activeId) {
         // Активный — крупная карточка
         activeCardPos = { x: stackX, y: curY, w: CARD_W, h: activeCardH, isActive: true, node: activeNode };
@@ -71,12 +74,11 @@ function computeLayout(overrides) {
           node: sib,
           x: stackX + (CARD_W - MINI_W) / 2, // центрируем по горизонтали относительно крупной карточки
           y: curY,
-          w: MINI_W, h: MINI_H,
+          w: MINI_W, h: miniHFor(sib.id),   // реальная высота (название переносится)
           kind: 'sibling',
-          childCount,
-          isAbove: i < activeIdx
+          childCount
         });
-        curY += MINI_H + MINI_GAP;
+        curY += miniHFor(sib.id) + MINI_GAP;
       }
     });
   }
@@ -88,18 +90,20 @@ function computeLayout(overrides) {
   const children = getChildrenSorted(activeId);
   const activeRight = activeCardPos.x + activeCardPos.w;
   const childX = activeRight + CHILD_H_GAP;
-  const childTopY = activeCardPos.y; // выравниваем по верху активного
+  let childTopY = activeCardPos.y;
 
-  children.forEach((ch, i) => {
+  children.forEach(ch => {
     const childCount = countAllDescendants(ch.id);
+    const childH = miniHFor(ch.id);
     minis.push({
       node: ch,
       x: childX,
-      y: childTopY + i * (MINI_H + MINI_GAP),
-      w: MINI_W, h: MINI_H,
+      y: childTopY,
+      w: MINI_W, h: childH,
       kind: 'child',
       childCount
     });
+    childTopY += childH + MINI_GAP;
   });
 
   // ===== Размеры =====
