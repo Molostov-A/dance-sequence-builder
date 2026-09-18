@@ -17,6 +17,15 @@
 <body>
 
 <header>
+  <div class="nav-dropdown">
+    <button class="nav-btn" id="navToggle">☰ Разделы</button>
+    <div class="nav-menu" id="navMenu">
+      <div class="nav-item active" data-view="tree">Дерево связок</div>
+      <div class="nav-item" data-view="library">Библиотека движений</div>
+      <div class="nav-item" data-view="combos">Комбинации</div>
+      <div class="nav-item" data-view="generator">Генератор</div>
+    </div>
+  </div>
   <h1>💃 Связки</h1>
   <div class="spacer"></div>
   <button id="btnAddRoot">+ Связка</button>
@@ -27,30 +36,15 @@
 </header>
 
 <main>
-  <section class="panel" id="libPanel">
-    <div class="panel-header" data-toggle-panel="libPanel">
-      <span>Библиотека движений <span id="libCount" class="panel-count lib"></span></span>
-      <span class="chev">▾</span>
-    </div>
-    <div class="panel-body">
-      <ul class="mov-list" id="movList"></ul>
-      <div class="add-mov-row">
-        <input type="text" id="newMovInput" placeholder="Новое движение">
-        <button class="btn" id="btnAddMovement">+</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel" id="treePanel">
-    <div class="panel-header" data-toggle-panel="treePanel">
+  <section class="view active" id="view-tree">
+    <div class="view-header">
       <span>Дерево связок</span>
       <div class="tree-view-toggle">
         <button class="view-btn active" id="btnViewPath" title="Только активная ветка">⌨</button>
         <button class="view-btn" id="btnViewAll" title="Все ветви дерева">⊞</button>
       </div>
-      <span class="chev">▾</span>
     </div>
-    <div class="panel-body tree-body">
+    <div class="view-body tree-body">
       <div id="rootsBar"></div>
       <div id="breadcrumb"></div>
       <div id="treeWrap">
@@ -62,22 +56,33 @@
     </div>
   </section>
 
-  <section class="panel" id="comboPanel">
-    <div class="panel-header" data-toggle-panel="comboPanel">
-      <span>Комбинации <span id="comboCount" class="panel-count combo"></span></span>
-      <span class="chev">▾</span>
+  <section class="view" id="view-library">
+    <div class="view-header">
+      <span>Библиотека движений <span id="libCount" class="panel-count lib"></span></span>
     </div>
-    <div class="panel-body">
+    <div class="view-body">
+      <ul class="mov-list" id="movList"></ul>
+      <div class="add-mov-row">
+        <input type="text" id="newMovInput" placeholder="Новое движение">
+        <button class="btn" id="btnAddMovement">+</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="view-combos">
+    <div class="view-header">
+      <span>Комбинации <span id="comboCount" class="panel-count combo"></span></span>
+    </div>
+    <div class="view-body">
       <div id="combosContainer"></div>
     </div>
   </section>
 
-  <section class="panel" id="genPanel">
-    <div class="panel-header" data-toggle-panel="genPanel">
+  <section class="view" id="view-generator">
+    <div class="view-header">
       <span>Генератор <span id="genCount" class="panel-count gen"></span></span>
-      <span class="chev">▾</span>
     </div>
-    <div class="panel-body">
+    <div class="view-body">
       <button class="btn gen-btn" id="btnGenerate">Сгенерировать</button>
       <div id="genTreeContainer"></div>
       <div id="genCombosContainer"></div>

@@ -1,8 +1,8 @@
 @media (max-width: 900px) {
-  main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto; gap: 8px; padding: 8px; }
+  main { padding: 8px; }
   header h1 { font-size: 13px; }
   header button { padding: 6px 8px; font-size: 11px; }
-  .panel { border-radius: 6px; }
+  .view { border-radius: 6px; }
   #treeWrap { min-height: 300px; }
   #formLayer {
     position: fixed; left: 8px; right: 8px;

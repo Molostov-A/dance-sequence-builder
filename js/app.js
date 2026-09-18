@@ -5,7 +5,8 @@ function render() {
   renderBreadcrumb();
   renderTree();
   renderCombos();
-  applyPanelState();
+  renderGenerator();
+  setView(state.currentView);
 }
 
 document.getElementById('btnAddRoot').addEventListener('click', addRoot);
@@ -19,22 +20,30 @@ document.getElementById('btnAddMovement').addEventListener('click', addMovementF
 document.getElementById('newMovInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addMovementFromInput();
 });
-document.querySelectorAll('[data-toggle-panel]').forEach(el => {
-  el.addEventListener('click', () => togglePanel(el.dataset.togglePanel));
-});
 document.getElementById('btnCopyExport').addEventListener('click', copyExportText);
 document.getElementById('btnCloseExport').addEventListener('click', closeExportModal);
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
 
+// Navigation dropdown
+document.getElementById('navToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('navMenu').classList.toggle('open');
+});
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => setView(item.dataset.view));
+});
+document.addEventListener('click', () => {
+  document.getElementById('navMenu').classList.remove('open');
+});
+
 ensureActivePathValid();
-applyPanelState();
 document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
 document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
 render();
 
 window.addEventListener('resize', () => {
   if (openFormState) positionForm();
-  else if (panelState.treePanel) renderTree();
+  else if (state.currentView === 'tree') renderTree();
 });

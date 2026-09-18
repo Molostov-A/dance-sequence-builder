@@ -6,6 +6,11 @@
   font-size: 11px; color: #999; background: #eef1f4;
   padding: 1px 6px; border-radius: 8px;
 }
+.mov-list .count.used { color: #27ae60; background: #eafaf1; }
+.mov-list .mov-id {
+  font-size: 10px; color: #aaa; font-family: monospace;
+  min-width: 24px; text-align: right;
+}
 
 .icon-btn {
   background: none; border: none; cursor: pointer;

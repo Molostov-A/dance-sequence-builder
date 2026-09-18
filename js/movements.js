@@ -58,17 +58,21 @@ function renderMovements() {
   state.movements.forEach(m => {
     const li = document.createElement('li');
     const usage = Object.values(state.nodes).filter(n => n.movementId === m.id).length;
+    const idSpan = document.createElement('span');
+    idSpan.className = 'mov-id'; idSpan.textContent = '#' + m.id;
     const name = document.createElement('span');
     name.className = 'name'; name.textContent = m.name;
     const count = document.createElement('span');
-    count.className = 'count'; count.textContent = usage;
+    count.className = 'count';
+    count.textContent = usage > 0 ? usage + ' uses' : '0';
+    if (usage > 0) count.classList.add('used');
     const editBtn = document.createElement('button');
     editBtn.className = 'icon-btn'; editBtn.title = 'Переименовать'; editBtn.textContent = '✎';
     editBtn.onclick = (e) => { e.stopPropagation(); renameMovement(m.id); };
     const delBtn = document.createElement('button');
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteMovement(m.id); };
-    li.append(name, count, editBtn, delBtn);
+    li.append(idSpan, name, count, editBtn, delBtn);
     ul.appendChild(li);
   });
 }
