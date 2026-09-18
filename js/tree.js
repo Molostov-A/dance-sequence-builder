@@ -129,6 +129,34 @@ function renderTree() {
   svg.style.height = h + 'px';
   nodesLayer.style.visibility = '';
 
+  // ===== Merge selection mode =====
+  if (mergeSelectFrom) {
+    const targets = findMergeTargets(mergeSelectFrom);
+    const targetSet = new Set(targets);
+    nodesLayer.querySelectorAll('.node-card').forEach(el => {
+      const nid = parseInt(el.dataset.nodeId, 10);
+      if (targetSet.has(nid)) {
+        el.classList.add('merge-target');
+        el.onclick = (e) => {
+          e.stopPropagation();
+          addMerge(mergeSelectFrom, nid);
+          mergeSelectFrom = null;
+          renderTree();
+        };
+      }
+    });
+    const sourceEl = nodesLayer.querySelector(`[data-node-id="${mergeSelectFrom}"]`);
+    if (sourceEl) sourceEl.classList.add('merge-source');
+    const cancelHandler = (e) => {
+      if (!e.target.closest('.node-card') && !e.target.closest('.icon-btn')) {
+        mergeSelectFrom = null;
+        renderTree();
+        document.removeEventListener('click', cancelHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', cancelHandler), 0);
+  }
+
   // ===== Соединительные линии =====
 
   // 1) Хребет: горизонтальные связи между крупными карточками (кроме активного)
@@ -230,6 +258,31 @@ function renderTree() {
     });
   }
 
+  // ===== Merge lines =====
+  const allCardEls = nodesLayer.querySelectorAll('.node-card');
+  const posMap = new Map();
+  cards.forEach(c => posMap.set(c.node.id, c));
+  minis.forEach(m => posMap.set(m.node.id, m));
+
+  state.merges.forEach(m => {
+    const fromPos = posMap.get(m.from);
+    const toPos = posMap.get(m.to);
+    if (!fromPos || !toPos) return;
+    const x1 = fromPos.x + fromPos.w;
+    const y1 = fromPos.y + fromPos.h / 2;
+    const x2 = toPos.x;
+    const y2 = toPos.y + toPos.h / 2;
+    const dx = Math.abs(x2 - x1) * 0.5;
+    const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#9b59b6');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-dasharray', '6 3');
+    svg.appendChild(path);
+  });
+
   wrap.scrollLeft = scrollLeft;
   wrap.scrollTop = scrollTop;
 
@@ -248,6 +301,8 @@ function renderSpineCard(c) {
   if (node.parentId === null) el.classList.add('root-node');
   if (isSquareEnd(node.beat, node.length)) el.classList.add('square-end');
   if (c.isActive) el.classList.add('active');
+  if (state.merges.some(m => m.from === node.id)) el.classList.add('merge-source');
+  if (state.merges.some(m => m.to === node.id)) el.classList.add('has-merge-in');
   el.style.left = c.x + 'px';
   el.style.top = c.y + 'px';
 
@@ -304,7 +359,28 @@ function renderSpineCard(c) {
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
 
-    actions.append(replaceBtn, addBtn, delBtn);
+    const existingMerge = state.merges.find(m => m.from === node.id);
+    const mergeBtn = document.createElement('button');
+    mergeBtn.className = 'icon-btn' + (existingMerge ? ' merge-active' : '');
+    mergeBtn.title = existingMerge ? 'Отменить подключение' : 'Подключиться';
+    mergeBtn.textContent = '↩';
+    if (existingMerge) {
+      mergeBtn.onclick = (e) => { e.stopPropagation(); removeMerge(node.id); };
+    } else {
+      const nextB = node.beat + node.length;
+      const targets = nextB <= 32 ? findMergeTargets(node.id) : [];
+      if (targets.length === 0) {
+        mergeBtn.disabled = true; mergeBtn.title = 'Нет подходящих узлов';
+      } else {
+        mergeBtn.onclick = (e) => {
+          e.stopPropagation();
+          mergeSelectFrom = node.id;
+          renderTree();
+        };
+      }
+    }
+
+    actions.append(replaceBtn, addBtn, mergeBtn, delBtn);
     el.appendChild(actions);
   }
 
@@ -385,6 +461,34 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   svg.style.height = h + 'px';
   nodesLayer.style.visibility = '';
 
+  // Merge selection mode in full tree
+  if (mergeSelectFrom) {
+    const targets = findMergeTargets(mergeSelectFrom);
+    const targetSet = new Set(targets);
+    nodesLayer.querySelectorAll('.node-card').forEach(el => {
+      const nid = parseInt(el.dataset.nodeId, 10);
+      if (targetSet.has(nid)) {
+        el.classList.add('merge-target');
+        el.onclick = (e) => {
+          e.stopPropagation();
+          addMerge(mergeSelectFrom, nid);
+          mergeSelectFrom = null;
+          renderTree();
+        };
+      }
+    });
+    const sourceEl = nodesLayer.querySelector(`[data-node-id="${mergeSelectFrom}"]`);
+    if (sourceEl) sourceEl.classList.add('merge-source');
+    const cancelHandler = (e) => {
+      if (!e.target.closest('.node-card') && !e.target.closest('.icon-btn')) {
+        mergeSelectFrom = null;
+        renderTree();
+        document.removeEventListener('click', cancelHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', cancelHandler), 0);
+  }
+
   // Карта позиций для рисования линий
   const posMap = new Map();
   cards.forEach(c => posMap.set(c.node.id, c));
@@ -434,6 +538,26 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
       svg.appendChild(line);
     });
   });
+
+  // Merge lines in full tree
+  state.merges.forEach(m => {
+    const fromPos = posMap.get(m.from);
+    const toPos = posMap.get(m.to);
+    if (!fromPos || !toPos) return;
+    const x1 = fromPos.x + fromPos.w;
+    const y1 = fromPos.y + fromPos.h / 2;
+    const x2 = toPos.x;
+    const y2 = toPos.y + toPos.h / 2;
+    const dx = Math.abs(x2 - x1) * 0.5;
+    const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#9b59b6');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('stroke-dasharray', '6 3');
+    svg.appendChild(path);
+  });
 }
 
 function renderFullTreeNode(c) {
@@ -445,6 +569,8 @@ function renderFullTreeNode(c) {
   if (isSquareEnd(node.beat, node.length)) el.classList.add('square-end');
   if (c.isOnPath) el.classList.add('on-path');
   if (c.isOnPath && node.id === (state.activePath || []).slice(-1)[0]) el.classList.add('active');
+  if (state.merges.some(m => m.from === node.id)) el.classList.add('merge-source');
+  if (state.merges.some(m => m.to === node.id)) el.classList.add('has-merge-in');
   el.style.left = c.x + 'px';
   el.style.top = c.y + 'px';
 
@@ -502,7 +628,28 @@ function renderFullTreeNode(c) {
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
 
-    actions.append(replaceBtn, addBtn, delBtn);
+    const existingMerge = state.merges.find(m => m.from === node.id);
+    const mergeBtn = document.createElement('button');
+    mergeBtn.className = 'icon-btn' + (existingMerge ? ' merge-active' : '');
+    mergeBtn.title = existingMerge ? 'Отменить подключение' : 'Подключиться';
+    mergeBtn.textContent = '↩';
+    if (existingMerge) {
+      mergeBtn.onclick = (e) => { e.stopPropagation(); removeMerge(node.id); };
+    } else {
+      const nextB = node.beat + node.length;
+      const targets = nextB <= 32 ? findMergeTargets(node.id) : [];
+      if (targets.length === 0) {
+        mergeBtn.disabled = true; mergeBtn.title = 'Нет подходящих узлов';
+      } else {
+        mergeBtn.onclick = (e) => {
+          e.stopPropagation();
+          mergeSelectFrom = node.id;
+          renderTree();
+        };
+      }
+    }
+
+    actions.append(replaceBtn, addBtn, mergeBtn, delBtn);
     el.appendChild(actions);
   }
 

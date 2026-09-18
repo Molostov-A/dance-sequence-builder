@@ -30,6 +30,7 @@ function deleteNode(id) {
     state.nodeOrder = state.nodeOrder.filter(x => x !== nid);
     delete state.nodes[nid];
   });
+  state.merges = state.merges.filter(m => !descendants.includes(m.from) && !descendants.includes(m.to));
   state.activePath = state.activePath.filter(p => !descendants.includes(p));
   ensureActivePathValid();
   saveState(); render();
@@ -72,5 +73,45 @@ function replaceMovement(nodeId) {
   }
   if (mov) node.movementId = mov.id;
   else node.movementId = addMovement(trimmed);
+  saveState(); render();
+}
+
+/* ===== MERGE (side branches) ===== */
+let mergeSelectFrom = null;
+
+function findMergeTargets(fromNodeId) {
+  const fromNode = state.nodes[fromNodeId];
+  if (!fromNode) return [];
+  const nextBeat = fromNode.beat + fromNode.length;
+  if (nextBeat > 32) return [];
+  const targetBeatPos = beatInEighth(nextBeat);
+
+  const ancestors = new Set();
+  let cur = fromNode;
+  let guard = 0;
+  while (cur && guard++ < 1000) {
+    ancestors.add(cur.id);
+    if (cur.parentId === null) break;
+    cur = state.nodes[cur.parentId];
+  }
+
+  return state.nodeOrder.filter(id => {
+    if (id === fromNodeId) return false;
+    const node = state.nodes[id];
+    if (!node) return false;
+    if (ancestors.has(id)) return false;
+    if (beatInEighth(node.beat) !== targetBeatPos) return false;
+    return true;
+  });
+}
+
+function addMerge(fromId, toId) {
+  state.merges = state.merges.filter(m => m.from !== fromId);
+  state.merges.push({ from: fromId, to: toId });
+  saveState(); render();
+}
+
+function removeMerge(fromId) {
+  state.merges = state.merges.filter(m => m.from !== fromId);
   saveState(); render();
 }

@@ -4,7 +4,7 @@ function initialState() {
   return {
     movements: [], roots: [], nodes: {}, nodeOrder: [],
     nextNodeId: 1, nextMovId: 1, activePath: [],
-    treeViewMode: 'path'
+    treeViewMode: 'path', merges: []
   };
 }
 function saveState() {
@@ -13,7 +13,10 @@ function saveState() {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data.merges) data.merges = [];
+    return data;
   } catch (e) { return null; }
 }
 function toggleTreeView(mode) {

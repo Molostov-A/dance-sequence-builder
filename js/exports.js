@@ -85,6 +85,8 @@ function importJson(event) {
       if (!state.nextNodeId) state.nextNodeId = Math.max(0, ...Object.keys(state.nodes).map(Number)) + 1;
       if (!state.nextMovId) state.nextMovId = Math.max(0, ...state.movements.map(m => m.id)) + 1;
       if (!state.activePath) state.activePath = [];
+      if (!state.merges) state.merges = [];
+      if (!state.treeViewMode) state.treeViewMode = 'path';
       ensureActivePathValid();
       saveState(); render();
     } catch (err) { alert('Ошибка чтения JSON: ' + err.message); }

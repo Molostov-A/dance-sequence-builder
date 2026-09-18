@@ -165,3 +165,25 @@
   padding: 20px; text-align: center;
   font-style: italic; color: #999;
 }
+
+.node-card.merge-target {
+  border-color: #9b59b6;
+  box-shadow: 0 0 10px rgba(155,89,182,0.45);
+  animation: merge-pulse 1.2s ease-in-out infinite;
+}
+@keyframes merge-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(155,89,182,0.3); }
+  50% { box-shadow: 0 0 14px rgba(155,89,182,0.6); }
+}
+.node-card.merge-source {
+  border-style: dashed;
+  border-color: #9b59b6;
+}
+.icon-btn.merge-active {
+  background: #f0eaf8;
+  color: #9b59b6;
+  border-color: #d9c8eb;
+}
+.node-card.has-merge-in {
+  border-left: 3px solid #9b59b6;
+}

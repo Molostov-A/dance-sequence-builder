@@ -3,15 +3,26 @@ function collectCombos() {
   state.roots.forEach(rootId => {
     const root = state.nodes[rootId];
     if (!root) return;
-    walk(root, [], combos);
+    walk(root, [], combos, new Set());
   });
   return combos;
 }
-function walk(node, path, combos) {
+function walk(node, path, combos, visited) {
   path.push(node);
   const children = getChildren(node.id);
-  if (children.length === 0) combos.push([...path]);
-  else children.forEach(c => walk(c, path, combos));
+  const merge = state.merges.find(m => m.from === node.id);
+  const mergeTarget = merge ? state.nodes[merge.to] : null;
+
+  if (children.length === 0 && !mergeTarget) {
+    combos.push([...path]);
+  } else {
+    children.forEach(c => walk(c, path, combos, visited));
+    if (mergeTarget && !visited.has(mergeTarget.id)) {
+      visited.add(mergeTarget.id);
+      walk(mergeTarget, path, combos, visited);
+      visited.delete(mergeTarget.id);
+    }
+  }
   path.pop();
 }
 function renderCombos() {
