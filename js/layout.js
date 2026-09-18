@@ -141,3 +141,94 @@ function countAllDescendants(nodeId) {
   }
   return count;
 }
+
+/* =========================================================
+   FULL TREE LAYOUT — рекурсивная компоновка всех корней.
+   Каждый корень — горизонтальная цепочка узлов, ветви идут
+   вправо столбиком. Корни расположены вертикально.
+   ========================================================= */
+const ROOT_V_GAP = 40;
+const LEVEL_H_GAP = 80;
+
+function computeFullTreeLayout(overrides) {
+  const O = overrides || {};
+  const hFor = O.heightFor || (() => CARD_H);
+  const miniHFor = O.miniHFor || (() => MINI_H);
+
+  const cards = [];
+  const minis = [];
+  const onPath = new Set(state.activePath || []);
+
+  function isOnPath(id) { return onPath.has(id); }
+
+  function nodeH(id) { return isOnPath(id) ? hFor(id) : miniHFor(id); }
+
+  // Рекурсивно вычисляет layout поддерева.
+  // Возвращает { elements, width, height }
+  // elements — массив {node, x, y, w, h, isRoot, isOnPath}
+  function layoutSubtree(nodeId, x, y) {
+    const node = state.nodes[nodeId];
+    if (!node) return { elements: [], width: 0, height: 0 };
+
+    const children = getChildrenSorted(nodeId);
+    const h = nodeH(nodeId);
+    const w = isOnPath(nodeId) ? CARD_W : MINI_W;
+
+    if (children.length === 0) {
+      return {
+        elements: [{ node, x, y, w, h, isRoot: false, isOnPath: isOnPath(nodeId) }],
+        width: w,
+        height: h
+      };
+    }
+
+    const childX = x + w + LEVEL_H_GAP;
+    let childResults = [];
+    let totalChildH = 0;
+    children.forEach((ch, i) => {
+      const res = layoutSubtree(ch.id, childX, y + totalChildH);
+      childResults.push(res);
+      totalChildH += res.height;
+      if (i < children.length - 1) totalChildH += MINI_GAP;
+    });
+
+    const childrenBlockH = totalChildH;
+    const parentY = y + Math.max(0, (childrenBlockH - h) / 2);
+
+    let maxChildRight = 0;
+    childResults.forEach(r => {
+      maxChildRight = Math.max(maxChildRight, r.x + r.width);
+    });
+    const subtreeW = Math.max(w, (maxChildRight - x));
+
+    const elements = [{ node, x, y: parentY, w, h, isRoot: false, isOnPath: isOnPath(nodeId) }];
+    childResults.forEach(r => elements.push(...r.elements));
+
+    return { elements, width: subtreeW, height: Math.max(h, childrenBlockH) };
+  }
+
+  let curY = PAD;
+  state.roots.forEach((rootId, i) => {
+    const res = layoutSubtree(rootId, PAD, curY);
+    // Помечаем корень
+    res.elements.forEach(el => {
+      if (el.node.id === rootId) el.isRoot = true;
+    });
+    cards.push(...res.elements);
+    curY += res.height;
+    if (i < state.roots.length - 1) curY += ROOT_V_GAP;
+  });
+
+  let maxRight = 0, maxBottom = 0;
+  cards.forEach(c => {
+    maxRight = Math.max(maxRight, c.x + c.w);
+    maxBottom = Math.max(maxBottom, c.y + c.h);
+  });
+
+  return {
+    cards,
+    minis: [],
+    width: maxRight + PAD,
+    height: Math.max(maxBottom + PAD, 220)
+  };
+}

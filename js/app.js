@@ -24,9 +24,13 @@ document.querySelectorAll('[data-toggle-panel]').forEach(el => {
 });
 document.getElementById('btnCopyExport').addEventListener('click', copyExportText);
 document.getElementById('btnCloseExport').addEventListener('click', closeExportModal);
+document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
+document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 
 ensureActivePathValid();
 applyPanelState();
+document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
+document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
 render();
 
 window.addEventListener('resize', () => {

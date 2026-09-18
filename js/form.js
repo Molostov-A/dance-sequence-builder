@@ -52,6 +52,16 @@ function positionForm() {
   formEl.style.top = y + 'px';
   formEl.style.right = '';
   formEl.style.bottom = '';
+  const fw = formEl.offsetWidth;
+  const fh = formEl.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  if (x + fw > vw - 10) x = Math.max(10, vw - fw - 10);
+  if (y + fh > vh - 10) y = Math.max(10, vh - fh - 10);
+  if (x < 10) x = 10;
+  if (y < 10) y = 10;
+  formEl.style.left = x + 'px';
+  formEl.style.top = y + 'px';
 }
 function submitForm() {
   if (!openFormState) return;

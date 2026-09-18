@@ -62,6 +62,18 @@ function renderTree() {
   nodesLayer.innerHTML = '';
   svg.innerHTML = '';
 
+  if (state.treeViewMode === 'all') {
+    renderFullTree(inner, nodesLayer, svg, wrap);
+    wrap.scrollLeft = scrollLeft;
+    wrap.scrollTop = scrollTop;
+    if (openFormState) {
+      if (!document.getElementById('formLayer').innerHTML.trim()) {
+        buildForm(); showForm();
+      } else positionForm();
+    }
+    return;
+  }
+
   const activePath = (state.activePath || []).filter(id => state.nodes[id]);
   if (activePath.length === 0) {
     inner.style.width = '100%';
@@ -329,5 +341,170 @@ function renderMiniCard(m) {
 
   el.title = `Переключиться на "${mov ? mov.name : '???'}" (${formatBeat(node.beat, node.length)})`;
   el.onclick = () => setActiveNode(node.id);
+  return el;
+}
+
+/* =========================================================
+   RENDER FULL TREE — отображение всех узлов всех корней.
+   ========================================================= */
+function renderFullTree(inner, nodesLayer, svg, wrap) {
+  if (state.roots.length === 0) {
+    inner.style.width = '100%';
+    inner.style.height = '100%';
+    svg.setAttribute('width', 0);
+    svg.setAttribute('height', 0);
+    nodesLayer.innerHTML = '<div class="tree-empty-hint">Нет ни одной связки. Добавьте связку или выберите узел.</div>';
+    return;
+  }
+
+  const first = computeFullTreeLayout();
+  const cardEls = first.cards.map(c => renderFullTreeNode(c));
+  nodesLayer.style.visibility = 'hidden';
+  cardEls.forEach(el => nodesLayer.appendChild(el));
+
+  const cardHeights = new Map(cardEls.map((el, i) => [first.cards[i].node.id, el.offsetHeight || MINI_H]));
+  const layout = computeFullTreeLayout({
+    heightFor: id => cardHeights.get(id) || CARD_H,
+    miniHFor: id => cardHeights.get(id) || MINI_H
+  });
+  const { cards, width, height } = layout;
+  const w = Math.max(width, 300);
+  const h = Math.max(height, 300);
+
+  cardEls.forEach((el, i) => {
+    const c = cards[i];
+    el.style.left = c.x + 'px';
+    el.style.top = c.y + 'px';
+  });
+
+  inner.style.width = w + 'px';
+  inner.style.height = h + 'px';
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.style.width = w + 'px';
+  svg.style.height = h + 'px';
+  nodesLayer.style.visibility = '';
+
+  // Карта позиций для рисования линий
+  const posMap = new Map();
+  cards.forEach(c => posMap.set(c.node.id, c));
+
+  // Рисуем линии от родителя к каждому ребёнку
+  cards.forEach(c => {
+    const children = getChildrenSorted(c.node.id);
+    if (children.length === 0) return;
+
+    const parentRight = c.x + c.w;
+    const parentMidY = c.y + c.h / 2;
+    const busX = parentRight + BUS_OFFSET;
+
+    // Горизонтальный отвод от родителя к шине
+    const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    hLine.setAttribute('d', `M ${parentRight} ${parentMidY} L ${busX} ${parentMidY}`);
+    hLine.setAttribute('fill', 'none');
+    hLine.setAttribute('stroke', '#3498db');
+    hLine.setAttribute('stroke-width', '2');
+    svg.appendChild(hLine);
+
+    // Вертикальная шина
+    const childCenters = children.map(ch => {
+      const cp = posMap.get(ch.id);
+      return cp ? cp.y + cp.h / 2 : parentMidY;
+    });
+    const busTop = Math.min(parentMidY, ...childCenters);
+    const busBot = Math.max(parentMidY, ...childCenters);
+
+    const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    vLine.setAttribute('d', `M ${busX} ${busTop} L ${busX} ${busBot}`);
+    vLine.setAttribute('fill', 'none');
+    vLine.setAttribute('stroke', '#3498db');
+    vLine.setAttribute('stroke-width', '2');
+    svg.appendChild(vLine);
+
+    // Отводы к каждому ребёнку
+    children.forEach(ch => {
+      const cp = posMap.get(ch.id);
+      if (!cp) return;
+      const cy = cp.y + cp.h / 2;
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      line.setAttribute('d', `M ${busX} ${cy} L ${cp.x} ${cy}`);
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', '#3498db');
+      line.setAttribute('stroke-width', '2');
+      svg.appendChild(line);
+    });
+  });
+}
+
+function renderFullTreeNode(c) {
+  const node = c.node;
+  const el = document.createElement('div');
+  el.className = 'node-card';
+  el.dataset.nodeId = node.id;
+  if (node.parentId === null) el.classList.add('root-node');
+  if (isSquareEnd(node.beat, node.length)) el.classList.add('square-end');
+  if (c.isOnPath) el.classList.add('on-path');
+  if (c.isOnPath && node.id === (state.activePath || []).slice(-1)[0]) el.classList.add('active');
+  el.style.left = c.x + 'px';
+  el.style.top = c.y + 'px';
+
+  el.onclick = (e) => {
+    if (e.target.closest('.card-actions')) return;
+    setActiveNode(node.id);
+  };
+
+  if (c.isOnPath && node.id === (state.activePath || []).slice(-1)[0]) {
+    const dot = document.createElement('div');
+    dot.className = 'active-dot';
+    el.appendChild(dot);
+  }
+
+  const movName = document.createElement('span');
+  movName.className = 'mov-name';
+  const mov = getMovement(node.movementId);
+  movName.textContent = mov ? mov.name : '???';
+  movName.title = mov ? mov.name : '';
+
+  const badge = document.createElement('span');
+  badge.className = 'beat-badge';
+  if (isSquareEnd(node.beat, node.length)) badge.classList.add('square');
+  badge.textContent = formatBeatNode(node.beat, node.length);
+  if (isSquareEnd(node.beat, node.length)) {
+    const sq = document.createElement('small');
+    sq.textContent = '✓ квадрат';
+    badge.appendChild(sq);
+  }
+
+  el.append(movName, badge);
+
+  const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
+  if (isActive) {
+    const actions = document.createElement('div');
+    actions.className = 'card-actions';
+
+    const replaceBtn = document.createElement('button');
+    replaceBtn.className = 'icon-btn'; replaceBtn.title = 'Заменить'; replaceBtn.textContent = '⇄';
+    replaceBtn.onclick = (e) => { e.stopPropagation(); replaceMovement(node.id); };
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'icon-btn'; addBtn.title = 'Продолжить'; addBtn.textContent = '+';
+    const nextBeat = node.beat + node.length;
+    if (allowedLengths(nextBeat).length === 0) {
+      addBtn.disabled = true; addBtn.title = 'Нельзя начать';
+    } else {
+      addBtn.onclick = (e) => {
+        e.stopPropagation();
+        openForm({ parentId: node.id, isRoot: false, beat: nextBeat });
+      };
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
+    delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
+
+    actions.append(replaceBtn, addBtn, delBtn);
+    el.appendChild(actions);
+  }
+
   return el;
 }
