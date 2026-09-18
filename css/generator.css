@@ -1,0 +1,64 @@
+.panel-count.gen { color: #9b59b6; }
+
+.gen-btn {
+  display: block; width: 100%; margin-bottom: 10px;
+  background: #9b59b6; color: #fff; border: none;
+  padding: 8px 12px; border-radius: 5px; cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  transition: background 0.15s;
+}
+.gen-btn:hover { background: #8e44ad; }
+.gen-btn:active { background: #7d3c98; }
+.gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#genTreeContainer {
+  margin-bottom: 12px;
+}
+#genTreeContainer .gen-tree-empty {
+  color: #999; font-style: italic; font-size: 12px;
+  padding: 8px 0;
+}
+#genTreeContainer .gen-tree {
+  display: flex; flex-direction: column; gap: 6px;
+}
+#genTreeContainer .gen-seq {
+  background: #f8f5fc; border: 1px solid #e8ddf0;
+  border-radius: 6px; padding: 8px 10px; font-size: 12px;
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+}
+#genTreeContainer .gen-seq:hover {
+  background: #f0eaf8; border-color: #9b59b6;
+}
+#genTreeContainer .gen-seq.active {
+  background: #f0eaf8; border-color: #9b59b6;
+  box-shadow: 0 1px 4px rgba(155,89,182,0.2);
+}
+#genTreeContainer .gen-seq-idx {
+  color: #999; font-size: 11px; margin-right: 6px;
+}
+#genTreeContainer .gen-seq-mov {
+  color: #2c3e50; font-weight: 500;
+}
+#genTreeContainer .gen-seq-beat {
+  color: #27ae60; font-size: 11px;
+}
+#genTreeContainer .gen-seq-arrow {
+  color: #b0b8c1; margin: 0 3px;
+}
+#genTreeContainer .gen-seq-expand {
+  margin-left: auto; flex-shrink: 0;
+  background: #f0eaf8; border: 1px solid #d9c8eb;
+  color: #9b59b6; border-radius: 4px;
+  padding: 2px 8px; cursor: pointer;
+  font-size: 13px; line-height: 1;
+  transition: background 0.12s;
+}
+#genTreeContainer .gen-seq-expand:hover {
+  background: #9b59b6; color: #fff;
+}
+
+#genCombosContainer .gen-combo-hint {
+  color: #999; font-style: italic; font-size: 12px;
+  padding: 8px 0;
+}

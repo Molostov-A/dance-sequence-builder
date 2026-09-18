@@ -3,9 +3,10 @@ let panelState = loadPanelState();
 function loadPanelState() {
   try {
     const raw = localStorage.getItem(PANEL_STATE_KEY);
-    return raw ? JSON.parse(raw) : { libPanel: true, treePanel: true, comboPanel: true };
+    const defaults = { libPanel: true, treePanel: true, comboPanel: true, genPanel: true };
+    return raw ? Object.assign(defaults, JSON.parse(raw)) : defaults;
   } catch (e) {
-    return { libPanel: true, treePanel: true, comboPanel: true };
+    return { libPanel: true, treePanel: true, comboPanel: true, genPanel: true };
   }
 }
 function savePanelState() {
@@ -16,7 +17,7 @@ function togglePanel(id) {
   savePanelState(); applyPanelState();
 }
 function applyPanelState() {
-  ['libPanel', 'treePanel', 'comboPanel'].forEach(id => {
+  ['libPanel', 'treePanel', 'comboPanel', 'genPanel'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     if (panelState[id]) el.classList.remove('collapsed');

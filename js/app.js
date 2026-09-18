@@ -26,6 +26,7 @@ document.getElementById('btnCopyExport').addEventListener('click', copyExportTex
 document.getElementById('btnCloseExport').addEventListener('click', closeExportModal);
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
+document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
 
 ensureActivePathValid();
 applyPanelState();
