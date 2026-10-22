@@ -98,6 +98,19 @@
   margin-bottom: 4px; font-size: 13px;
   white-space: normal; overflow-wrap: anywhere;
 }
+.node-card .card-title-row {
+  display: flex; align-items: flex-start; gap: 4px;
+  margin-bottom: 4px;
+}
+.node-card .card-title-row .mov-name { flex: 1; min-width: 0; margin-bottom: 0; }
+.node-card .card-edit-mov {
+  flex-shrink: 0; min-width: 22px; padding: 1px 4px;
+  font-size: 12px; line-height: 1.2; color: #95a5a6;
+}
+.node-card .card-edit-mov:hover { color: #2980b9; background: #eef5fb; }
+.node-card .card-edit-mov:disabled {
+  opacity: 0.35; cursor: not-allowed; background: none;
+}
 .node-card .beat-badge {
   display: inline-block; background: #2c3e50; color: #fff;
   font-size: 11px; padding: 2px 6px; border-radius: 4px;

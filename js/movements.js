@@ -4,24 +4,106 @@ function addMovementFromInput() {
   if (!name) return;
   addMovement(name); input.value = '';
 }
-function addMovement(name) {
+function addMovement(name, lead, follow) {
   if (!name) return null;
   const existing = state.movements.find(m => m.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing.id;
   const id = state.nextMovId++;
-  state.movements.push({ id, name });
+  state.movements.push({ id, name, lead: lead || '', follow: follow || '' });
   saveState(); render();
   return id;
 }
 function renameMovement(id) {
-  const mov = state.movements.find(m => m.id === id);
-  if (!mov) return;
-  const newName = prompt('Новое название:', mov.name);
-  if (newName === null) return;
-  const trimmed = newName.trim();
-  if (!trimmed) return;
-  mov.name = trimmed;
-  saveState(); render();
+  if (!getMovement(id)) return;
+  openMovementModal({ movementId: id });
+}
+
+let movementModalState = null;
+let movementModalFocus = null;
+
+function openMovementModal(opts) {
+  if (!opts) return;
+  const input = document.getElementById('movementNameInput');
+  const leadInput = document.getElementById('movementLeadInput');
+  const followInput = document.getElementById('movementFollowInput');
+  const title = document.getElementById('movementModalTitle');
+  const hint = document.getElementById('movementModalHint');
+  const errorEl = document.getElementById('movementModalError');
+  errorEl.textContent = '';
+
+  if (opts.movementId) {
+    const mov = getMovement(opts.movementId);
+    if (!mov) return;
+    title.textContent = 'Редактировать движение';
+    hint.textContent = `Движение #${mov.id}`;
+    input.value = mov.name;
+    leadInput.value = mov.lead || '';
+    followInput.value = mov.follow || '';
+  } else {
+    title.textContent = 'Новое движение';
+    hint.textContent = 'Отредактируйте название и описание перед добавлением.';
+    input.value = opts.text || '';
+    leadInput.value = opts.lead || '';
+    followInput.value = opts.follow || '';
+  }
+
+  movementModalState = opts;
+  movementModalFocus = document.activeElement;
+  document.getElementById('movementModal').classList.add('open');
+  input.focus();
+  input.select();
+}
+
+function closeMovementModal() {
+  document.getElementById('movementModal').classList.remove('open');
+  movementModalState = null;
+  if (movementModalFocus && document.contains(movementModalFocus)) {
+    movementModalFocus.focus();
+  }
+  movementModalFocus = null;
+}
+
+function saveMovementModal() {
+  if (!movementModalState) return;
+  const input = document.getElementById('movementNameInput');
+  const leadInput = document.getElementById('movementLeadInput');
+  const followInput = document.getElementById('movementFollowInput');
+  const errorEl = document.getElementById('movementModalError');
+  const name = input.value.trim();
+  const lead = leadInput.value.trim();
+  const follow = followInput.value.trim();
+  if (!name) {
+    errorEl.textContent = 'Введите название движения.';
+    input.focus();
+    return;
+  }
+
+  const modalState = movementModalState;
+  if (modalState.movementId) {
+    const mov = getMovement(modalState.movementId);
+    if (!mov) { closeMovementModal(); return; }
+    const duplicate = state.movements.find(m =>
+      m.id !== mov.id && m.name.toLowerCase() === name.toLowerCase()
+    );
+    if (duplicate) {
+      errorEl.textContent = 'Такое движение уже есть в библиотеке.';
+      input.focus();
+      input.select();
+      return;
+    }
+    if (mov.name !== name || (mov.lead || '') !== lead || (mov.follow || '') !== follow) {
+      mov.name = name;
+      mov.lead = lead;
+      mov.follow = follow;
+      saveState();
+      render();
+      if (typeof syncFormMovementOption === 'function') syncFormMovementOption(mov.id);
+    }
+    if (typeof modalState.onSaved === 'function') modalState.onSaved(mov);
+  } else if (typeof modalState.onSaved === 'function') {
+    modalState.onSaved({ name, lead, follow });
+  }
+  closeMovementModal();
 }
 function deleteMovement(id) {
   const usage = Object.values(state.nodes).filter(n => n.movementId === id).length;
@@ -45,6 +127,13 @@ function deleteMovement(id) {
   saveState(); render();
 }
 function getMovement(id) { return state.movements.find(m => m.id === id); }
+function movementNotes(mov) {
+  if (!mov) return '';
+  const parts = [];
+  if (mov.lead) parts.push('Лид: ' + mov.lead);
+  if (mov.follow) parts.push('Фоллоу: ' + mov.follow);
+  return parts.join('\n');
+}
 
 function renderMovements() {
   const ul = document.getElementById('movList');
@@ -57,6 +146,11 @@ function renderMovements() {
   }
   state.movements.forEach(m => {
     const li = document.createElement('li');
+    const notes = movementNotes(m);
+    li.title = notes
+      ? `${notes}\n\nОткрыть движение в модальном окне`
+      : 'Открыть движение в модальном окне';
+    li.onclick = () => openMovementModal({ movementId: m.id });
     const usage = Object.values(state.nodes).filter(n => n.movementId === m.id).length;
     const idSpan = document.createElement('span');
     idSpan.className = 'mov-id'; idSpan.textContent = '#' + m.id;

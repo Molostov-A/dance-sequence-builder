@@ -1,6 +1,7 @@
 .mov-list { list-style: none; padding: 0; margin: 0 0 10px; }
-.mov-list li { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 4px; }
+.mov-list li { display: flex; align-items: center; gap: 6px; padding: 6px; border-radius: 4px; cursor: pointer; }
 .mov-list li:hover, .mov-list li:active { background: #f0f2f5; }
+.mov-list .name:hover { color: #2980b9; }
 .mov-list .name { flex: 1; word-break: break-word; }
 .mov-list .count {
   font-size: 11px; color: #999; background: #eef1f4;

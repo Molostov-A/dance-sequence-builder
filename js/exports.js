@@ -58,6 +58,8 @@ function exportCombos() {
           return {
             movement: mov ? mov.name : '???',
             movementId: n.movementId,
+            lead: mov ? (mov.lead || '') : '',
+            follow: mov ? (mov.follow || '') : '',
             beat: n.beat, length: n.length,
             beatInEighth: beatInEighth(n.beat),
             label: formatBeatShort(n.beat, n.length),

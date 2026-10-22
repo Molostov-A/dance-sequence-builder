@@ -104,6 +104,24 @@
   </div>
 </div>
 
+<div class="modal-bg" id="movementModal" role="dialog" aria-modal="true" aria-labelledby="movementModalTitle">
+  <div class="modal movement-modal">
+    <h3 id="movementModalTitle">Редактировать движение</h3>
+    <p class="hint" id="movementModalHint"></p>
+    <label class="movement-field-label" for="movementNameInput">Название</label>
+    <input type="text" id="movementNameInput" class="movement-name-input" autocomplete="off" spellcheck="false">
+    <label class="movement-field-label" for="movementLeadInput">Лид</label>
+    <textarea id="movementLeadInput" class="movement-notes-input" rows="3" placeholder="Что делает лид"></textarea>
+    <label class="movement-field-label" for="movementFollowInput">Фоллоу</label>
+    <textarea id="movementFollowInput" class="movement-notes-input" rows="3" placeholder="Что делает фоллоу"></textarea>
+    <div class="error" id="movementModalError"></div>
+    <div class="actions">
+      <button class="btn" id="btnSaveMovement">Сохранить</button>
+      <button class="btn secondary" id="btnCancelMovement">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/constants.js"></script>
 <script src="js/state.js"></script>
 <script src="js/beat.js"></script>

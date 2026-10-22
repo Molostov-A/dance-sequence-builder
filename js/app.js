@@ -22,6 +22,16 @@ document.getElementById('newMovInput').addEventListener('keydown', (e) => {
 });
 document.getElementById('btnCopyExport').addEventListener('click', copyExportText);
 document.getElementById('btnCloseExport').addEventListener('click', closeExportModal);
+document.getElementById('btnSaveMovement').addEventListener('click', saveMovementModal);
+document.getElementById('btnCancelMovement').addEventListener('click', closeMovementModal);
+document.getElementById('movementNameInput').addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); saveMovementModal(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeMovementModal(); }
+});
+document.getElementById('movementModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeMovementModal();
+});
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });

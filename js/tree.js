@@ -293,6 +293,32 @@ function renderTree() {
   }
 }
 
+function renderCardTitle(node) {
+  const row = document.createElement('div');
+  row.className = 'card-title-row';
+
+  const mov = getMovement(node.movementId);
+  const movName = document.createElement('span');
+  movName.className = 'mov-name';
+  movName.textContent = mov ? mov.name : '???';
+  const notes = movementNotes(mov);
+  movName.title = mov ? (notes ? `${mov.name}\n\n${notes}` : mov.name) : '';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'icon-btn card-edit-mov';
+  editBtn.title = mov ? 'Редактировать движение' : 'Движение не найдено';
+  editBtn.textContent = '✎';
+  editBtn.disabled = !mov;
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    openMovementModal({ movementId: node.movementId });
+  };
+
+  row.append(movName, editBtn);
+  return row;
+}
+
 function renderSpineCard(c) {
   const node = c.node;
   const el = document.createElement('div');
@@ -317,11 +343,7 @@ function renderSpineCard(c) {
     el.appendChild(dot);
   }
 
-  const movName = document.createElement('span');
-  movName.className = 'mov-name';
-  const mov = getMovement(node.movementId);
-  movName.textContent = mov ? mov.name : '???';
-  movName.title = mov ? mov.name : '';
+  const titleRow = renderCardTitle(node);
 
   const badge = document.createElement('span');
   badge.className = 'beat-badge';
@@ -333,7 +355,7 @@ function renderSpineCard(c) {
     badge.appendChild(sq);
   }
 
-  el.append(movName, badge);
+  el.append(titleRow, badge);
 
   if (c.isActive) {
     const actions = document.createElement('div');
@@ -415,7 +437,9 @@ function renderMiniCard(m) {
     el.appendChild(plus);
   }
 
-  el.title = `Переключиться на "${mov ? mov.name : '???'}" (${formatBeat(node.beat, node.length)})`;
+  const notes = movementNotes(mov);
+  el.title = `Переключиться на "${mov ? mov.name : '???'}" (${formatBeat(node.beat, node.length)})`
+    + (notes ? `\n\n${notes}` : '');
   el.onclick = () => setActiveNode(node.id);
   return el;
 }
@@ -585,11 +609,7 @@ function renderFullTreeNode(c) {
     el.appendChild(dot);
   }
 
-  const movName = document.createElement('span');
-  movName.className = 'mov-name';
-  const mov = getMovement(node.movementId);
-  movName.textContent = mov ? mov.name : '???';
-  movName.title = mov ? mov.name : '';
+  const titleRow = renderCardTitle(node);
 
   const badge = document.createElement('span');
   badge.className = 'beat-badge';
@@ -601,7 +621,7 @@ function renderFullTreeNode(c) {
     badge.appendChild(sq);
   }
 
-  el.append(movName, badge);
+  el.append(titleRow, badge);
 
   const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
   if (isActive) {
