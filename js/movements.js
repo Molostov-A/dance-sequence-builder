@@ -145,6 +145,7 @@ function renderMovements() {
     li.className = 'empty-hint'; li.textContent = 'Пока пусто';
     ul.appendChild(li); return;
   }
+  rebuildMovementVideoIndex();
   state.movements.forEach(m => {
     const li = document.createElement('li');
     const notes = movementNotes(m);
@@ -153,6 +154,8 @@ function renderMovements() {
       : 'Открыть движение в модальном окне';
     li.onclick = () => openMovementModal({ movementId: m.id });
     const usage = Object.values(state.nodes).filter(n => n.movementId === m.id).length;
+    const videoEntries = getMovementVideoEntries(m.id);
+    const videoPlaceCount = videoEntries.reduce((sum, entry) => sum + entry.places.length, 0);
     const idSpan = document.createElement('span');
     idSpan.className = 'mov-id'; idSpan.textContent = '#' + m.id;
     const name = document.createElement('span');
@@ -167,7 +170,131 @@ function renderMovements() {
     const delBtn = document.createElement('button');
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteMovement(m.id); };
-    li.append(idSpan, name, count, editBtn, delBtn);
+    li.append(idSpan, name, count);
+    if (videoEntries.length) {
+      const videoBtn = document.createElement('button');
+      videoBtn.type = 'button';
+      videoBtn.className = 'mov-video-btn';
+      videoBtn.textContent = videoEntries.length > 1 ? `▶${videoEntries.length}` : '▶';
+      videoBtn.title = `Видео: ${videoEntries.length} · мест: ${videoPlaceCount}`;
+      videoBtn.setAttribute('aria-label', `Видео с движением ${m.name}: ${videoEntries.length}, мест: ${videoPlaceCount}`);
+      videoBtn.onclick = (e) => { e.stopPropagation(); openMovementVideosModal(m.id); };
+      li.appendChild(videoBtn);
+    }
+    li.append(editBtn, delBtn);
     ul.appendChild(li);
   });
+}
+
+let movementVideosModalState = null;
+let movementVideosFocus = null;
+
+function openMovementVideosModal(movementId) {
+  const mov = getMovement(movementId);
+  if (!mov) return;
+  rebuildMovementVideoIndex();
+  const entries = getMovementVideoEntries(movementId);
+  if (entries.length === 0) return;
+  const placesCount = entries.reduce((sum, entry) => sum + entry.places.length, 0);
+
+  movementVideosFocus = document.activeElement;
+  movementVideosModalState = { movementId, entries, activeIndex: 0, openUrl: '' };
+  document.getElementById('movementVideosTitle').textContent = `Видео: ${mov.name}`;
+  document.getElementById('movementVideosHint').textContent =
+    `Видео: ${entries.length} · мест: ${placesCount}`;
+  renderMovementVideoList();
+  setMovementVideosEntry(0);
+  document.getElementById('movementVideosModal').classList.add('open');
+  document.getElementById('btnCloseMovementVideos').focus();
+}
+
+function closeMovementVideosModal() {
+  document.getElementById('movementVideosModal').classList.remove('open');
+  const frame = document.getElementById('movementVideosFrame');
+  frame.src = 'about:blank';
+  frame.hidden = true;
+  const empty = document.getElementById('movementVideosEmpty');
+  empty.hidden = false;
+  empty.textContent = 'Видео пока не прикреплено';
+  document.getElementById('movementVideosList').innerHTML = '';
+  document.getElementById('movementVideosHint').textContent = '';
+  document.getElementById('btnOpenMovementVideoLink').disabled = true;
+  movementVideosModalState = null;
+  if (movementVideosFocus && document.contains(movementVideosFocus)) movementVideosFocus.focus();
+  movementVideosFocus = null;
+}
+
+function renderMovementVideoList() {
+  const list = document.getElementById('movementVideosList');
+  list.innerHTML = '';
+  if (!movementVideosModalState) return;
+
+  movementVideosModalState.entries.forEach((entry, idx) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'movement-video-item';
+
+    const head = document.createElement('span');
+    head.className = 'movement-video-item-head';
+    head.textContent = `Комбинация #${entry.index}`;
+
+    const places = document.createElement('span');
+    places.className = 'movement-video-item-places';
+    const placesLabel = document.createElement('span');
+    placesLabel.className = 'movement-video-item-places-label';
+    placesLabel.textContent = entry.places.length > 1 ? 'Места:' : 'Смотреть:';
+    places.appendChild(placesLabel);
+    entry.places.forEach(place => {
+      const chip = document.createElement('span');
+      chip.className = 'movement-video-place';
+      chip.textContent = formatBeat(place.beat, place.length);
+      places.appendChild(chip);
+    });
+
+    const seq = document.createElement('span');
+    seq.className = 'movement-video-item-seq';
+    seq.textContent = entry.combo.map(n => {
+      const mov = getMovement(n.movementId);
+      return mov ? mov.name : '???';
+    }).join(' → ');
+
+    item.append(head, places, seq);
+    item.onclick = () => setMovementVideosEntry(idx);
+    list.appendChild(item);
+  });
+}
+
+function setMovementVideosEntry(index) {
+  if (!movementVideosModalState) return;
+  const entry = movementVideosModalState.entries[index];
+  if (!entry) return;
+  movementVideosModalState.activeIndex = index;
+  const parsed = parseComboVideoUrl(entry.url);
+  const frame = document.getElementById('movementVideosFrame');
+  const empty = document.getElementById('movementVideosEmpty');
+  const openBtn = document.getElementById('btnOpenMovementVideoLink');
+
+  if (parsed) {
+    if (frame.src !== parsed.embedUrl) frame.src = parsed.embedUrl;
+    frame.hidden = false;
+    empty.hidden = true;
+    openBtn.disabled = false;
+    movementVideosModalState.openUrl = parsed.openUrl;
+  } else {
+    frame.src = 'about:blank';
+    frame.hidden = true;
+    empty.hidden = false;
+    empty.textContent = 'Ссылка на видео не распознана.';
+    openBtn.disabled = true;
+    movementVideosModalState.openUrl = '';
+  }
+
+  document.querySelectorAll('#movementVideosList .movement-video-item').forEach((el, i) => {
+    el.classList.toggle('active', i === index);
+  });
+}
+
+function openMovementVideoLink() {
+  if (!movementVideosModalState || !movementVideosModalState.openUrl) return;
+  window.open(movementVideosModalState.openUrl, '_blank', 'noopener,noreferrer');
 }

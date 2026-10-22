@@ -52,6 +52,14 @@ document.getElementById('nodeVideosModal').addEventListener('click', (e) => {
 document.getElementById('nodeVideosModal').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { e.preventDefault(); closeNodeVideosModal(); }
 });
+document.getElementById('btnOpenMovementVideoLink').addEventListener('click', openMovementVideoLink);
+document.getElementById('btnCloseMovementVideos').addEventListener('click', closeMovementVideosModal);
+document.getElementById('movementVideosModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeMovementVideosModal();
+});
+document.getElementById('movementVideosModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeMovementVideosModal(); }
+});
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });

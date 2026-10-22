@@ -158,6 +158,22 @@
   </div>
 </div>
 
+<div class="modal-bg" id="movementVideosModal" role="dialog" aria-modal="true" aria-labelledby="movementVideosTitle">
+  <div class="modal movement-videos-modal">
+    <h3 id="movementVideosTitle">Видео движения</h3>
+    <p class="hint" id="movementVideosHint"></p>
+    <div class="combo-video-player">
+      <div class="combo-video-empty" id="movementVideosEmpty">Видео пока не прикреплено</div>
+      <iframe id="movementVideosFrame" class="combo-video-frame" title="Видео движения" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen scrolling="no" hidden></iframe>
+    </div>
+    <div class="movement-videos-list" id="movementVideosList"></div>
+    <div class="actions">
+      <button class="btn secondary" id="btnOpenMovementVideoLink" disabled>Открыть в новой вкладке</button>
+      <button class="btn secondary" id="btnCloseMovementVideos">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/constants.js"></script>
 <script src="js/state.js"></script>
 <script src="js/beat.js"></script>

@@ -107,3 +107,42 @@
   max-width: 100%; font-size: 11px; color: #7f8c8d;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+.movement-videos-modal {
+  width: 520px; max-height: 90vh; overflow-y: auto;
+}
+.movement-videos-modal .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.movement-videos-list {
+  max-height: 200px; overflow-y: auto;
+  margin-top: 8px;
+}
+.movement-video-item {
+  width: 100%; display: flex; flex-direction: column; gap: 2px;
+  text-align: left; font-family: inherit; color: inherit;
+  background: #f8f9fb; border: 1px solid #e3e7ec;
+  border-radius: 6px; padding: 6px 9px; margin-bottom: 6px;
+  cursor: pointer;
+}
+.movement-video-item:hover { background: #eef5fb; border-color: #cfe0ee; }
+.movement-video-item.active {
+  background: #eef5fb; border-color: #3498db;
+  box-shadow: inset 3px 0 0 #3498db;
+}
+.movement-video-item-head {
+  font-size: 12px; font-weight: 600; color: #2c3e50;
+}
+.movement-video-item-places {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+}
+.movement-video-item-places-label {
+  font-size: 11px; color: #7f8c8d;
+}
+.movement-video-place {
+  font-size: 11px; color: #1e8449; background: #e8f6ee;
+  border: 1px solid #bfe3cc; border-radius: 10px;
+  padding: 1px 6px; white-space: nowrap;
+}
+.movement-video-item-seq {
+  max-width: 100%; font-size: 11px; color: #7f8c8d;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

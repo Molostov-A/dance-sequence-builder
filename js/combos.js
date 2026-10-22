@@ -67,6 +67,32 @@ function getNodeVideoEntries(nodeId) {
   });
   return entries;
 }
+let movementVideoIndex = {};
+function rebuildMovementVideoIndex() {
+  movementVideoIndex = {};
+  collectCombos().forEach((combo, comboIndex) => {
+    const url = getComboVideo(combo);
+    if (!url) return;
+    const placesByMovement = {};
+    combo.forEach(node => {
+      if (!placesByMovement[node.movementId]) placesByMovement[node.movementId] = [];
+      placesByMovement[node.movementId].push({ beat: node.beat, length: node.length });
+    });
+    Object.keys(placesByMovement).forEach(key => {
+      const movementId = Number(key);
+      if (!movementVideoIndex[movementId]) movementVideoIndex[movementId] = [];
+      movementVideoIndex[movementId].push({
+        combo,
+        index: comboIndex + 1,
+        url,
+        places: placesByMovement[key]
+      });
+    });
+  });
+}
+function getMovementVideoEntries(movementId) {
+  return movementVideoIndex[movementId] || [];
+}
 function pruneComboVideos() {
   if (!state.comboVideos) return;
   Object.keys(state.comboVideos).forEach(key => {
