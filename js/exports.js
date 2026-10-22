@@ -53,6 +53,7 @@ function exportCombos() {
       const totalBeats = combo.reduce((s, n) => s + n.length, 0);
       return {
         index: idx + 1, totalBeats, squares: totalBeats / 32,
+        videoUrl: getComboVideo(combo),
         steps: combo.map(n => {
           const mov = getMovement(n.movementId);
           return {
@@ -88,7 +89,9 @@ function importJson(event) {
       if (!state.nextMovId) state.nextMovId = Math.max(0, ...state.movements.map(m => m.id)) + 1;
       if (!state.activePath) state.activePath = [];
       if (!state.merges) state.merges = [];
+      if (!state.comboVideos || typeof state.comboVideos !== 'object') state.comboVideos = {};
       if (!state.treeViewMode) state.treeViewMode = 'path';
+      pruneComboVideos();
       ensureActivePathValid();
       saveState(); render();
     } catch (err) { alert('Ошибка чтения JSON: ' + err.message); }

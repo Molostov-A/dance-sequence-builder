@@ -72,6 +72,7 @@ state = {
   activePath:  [rootId, ..., activeId],           // путь от корня до активного узла
   treeViewMode: 'path' | 'all',
   merges:      [{ from: nodeId, to: nodeId }],     // боковые ответвления
+  comboVideos: { [comboKey]: url },                // видео готовых комбинаций
   currentView: 'tree' | 'library' | 'combos' | 'generator'
 }
 ```
@@ -169,6 +170,16 @@ state = {
 
 `js/combos.js`. Листовые пути дерева: `collectCombos()` обходит DFS от каждого корня; узел считается листом, если нет детей **и** нет merge-цели. `visited` защищает от циклов через merge.
 
+### Видео комбинации
+
+Кнопка «+ Видео» / «▶ Видео» в строке комбинации открывает модальное окно `#comboVideoModal`. Ссылка хранится в `state.comboVideos` по ключу `comboVideoKey(combo)` — это последовательность `nodeId:movementId:beat:length`, склеенная `|`. Ключ меняется при изменении состава, движения или длительности, поэтому старое видео не привязывается к изменившейся связке. `pruneComboVideos()` удаляет осиротевшие записи при удалении узлов/движений, замене движения и импорте.
+
+Поддерживаются ссылки Google Диска на файл: `/file/d/<id>/...` и `?id=<id>`. Они преобразуются в `https://drive.google.com/file/d/<id>/preview` для встроенного iframe; кнопка «Открыть в новой вкладке» ведёт на `/view`. Файл должен быть доступен по ссылке, иначе Google покажет запрос доступа внутри iframe. Ссылки на папки и другие хосты отклоняются. Разметка — в `index.html`, стили — `combo.css` и `modal.css`, события — `app.js`.
+
+### Видео у узла дерева
+
+`renderTree()` начинает с `rebuildNodeVideoIndex()`: он проходит по `collectCombos()` и считает, в скольких комбинациях с прикреплённым видео встречается каждый `nodeId`. Если счётчик больше нуля, на карточке (и на мини-карточке) появляется кнопка `▶` (при нескольких видео — `▶N`); клик открывает компактное окно `#nodeVideosModal`. В нём показано место узла (`formatBeat`, например «2-я восьмёрка, 1-4») и список комбинаций с видео, в которых участвует именно этот узел. Выбор строки переключает iframe; кнопка открывает выбранное видео в новой вкладке. Повторный `render()` пересчитывает индекс, поэтому привязка/удаление видео сразу обновляет кнопки. Логика — в `js/combos.js`, разметка — `index.html`, стили — `modal.css` и `tree.css`.
+
 ## Генератор
 
 `js/generator.js`.
@@ -186,9 +197,9 @@ state = {
 `js/exports.js`.
 
 - `exportAll()` — весь `state` без `activePath`.
-- `exportCombos()` — производные комбинации с детальными данными по каждому шагу.
+- `exportCombos()` — производные комбинации с детальными данными по каждому шагу; поле `videoUrl` берётся из `comboVideos`.
 - Файлы: `dance_combos_<timestamp>.json`, `dance_combos_combos_<timestamp>.json`.
-- `importJson()` требует `movements`, `nodes`, `roots`; восстанавливает недостающие `nodeOrder`, `nextNodeId`, `nextMovId`, `activePath`, `merges`, `treeViewMode`. После импорта — `ensureActivePathValid(); saveState(); render();`.
+- `importJson()` требует `movements`, `nodes`, `roots`; восстанавливает недостающие `nodeOrder`, `nextNodeId`, `nextMovId`, `activePath`, `merges`, `comboVideos`, `treeViewMode`. После импорта — `pruneComboVideos(); ensureActivePathValid(); saveState(); render();`.
 - Есть резервный путь: если автоскачивание не сработало, показывается модальное окно `#exportModal` с текстом для ручного копирования.
 
 ## CSS

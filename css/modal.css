@@ -40,3 +40,70 @@
   color: #c0392b; font-size: 12px; min-height: 16px;
   margin-top: 6px;
 }
+
+.combo-video-modal {
+  width: 720px; max-height: 92vh; overflow-y: auto;
+}
+.combo-video-player {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  background: #111; border-radius: 6px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.combo-video-frame {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border: 0;
+}
+.combo-video-empty {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  color: #9aa5b1; font-size: 13px; text-align: center;
+  padding: 16px;
+}
+.combo-video-player [hidden] { display: none !important; }
+.combo-video-label {
+  display: block; font-size: 12px; color: #555;
+  margin: 8px 0 4px;
+}
+.combo-video-input {
+  width: 100%; padding: 9px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 14px;
+}
+.combo-video-modal .error {
+  color: #c0392b; font-size: 12px; min-height: 16px;
+  margin-top: 6px;
+}
+.combo-video-modal .btn.danger { background: #c0392b; }
+.combo-video-modal .btn.danger:active { background: #a93226; }
+.combo-video-modal .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.combo-video-actions { flex-wrap: wrap; }
+
+.node-videos-modal {
+  width: 460px; max-height: 90vh; overflow-y: auto;
+}
+.node-videos-modal .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.node-videos-list {
+  max-height: 170px; overflow-y: auto;
+  margin-top: 8px;
+}
+.node-video-item {
+  width: 100%; display: flex; flex-direction: column; gap: 1px;
+  text-align: left; font-family: inherit; color: inherit;
+  background: #f8f9fb; border: 1px solid #e3e7ec;
+  border-radius: 6px; padding: 6px 9px; margin-bottom: 6px;
+  cursor: pointer;
+}
+.node-video-item:hover { background: #eef5fb; border-color: #cfe0ee; }
+.node-video-item.active {
+  background: #eef5fb; border-color: #3498db;
+  box-shadow: inset 3px 0 0 #3498db;
+}
+.node-video-item-head {
+  font-size: 12px; font-weight: 600; color: #2c3e50;
+}
+.node-video-item-meta {
+  font-size: 11px; color: #27ae60;
+}
+.node-video-item-seq {
+  max-width: 100%; font-size: 11px; color: #7f8c8d;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

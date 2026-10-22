@@ -123,6 +123,7 @@ function deleteMovement(id) {
     state.activePath = state.activePath.filter(p => !toDelete.has(p));
   }
   state.movements = state.movements.filter(m => m.id !== id);
+  pruneComboVideos();
   ensureActivePathValid();
   saveState(); render();
 }

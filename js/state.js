@@ -4,7 +4,8 @@ function initialState() {
   return {
     movements: [], roots: [], nodes: {}, nodeOrder: [],
     nextNodeId: 1, nextMovId: 1, activePath: [],
-    treeViewMode: 'path', merges: [], currentView: 'tree'
+    treeViewMode: 'path', merges: [], comboVideos: {},
+    currentView: 'tree'
   };
 }
 function saveState() {
@@ -16,6 +17,7 @@ function loadState() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data.merges) data.merges = [];
+    if (!data.comboVideos || typeof data.comboVideos !== 'object') data.comboVideos = {};
     if (!data.currentView) data.currentView = 'tree';
     return data;
   } catch (e) { return null; }

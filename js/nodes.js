@@ -32,6 +32,7 @@ function deleteNode(id) {
   });
   state.merges = state.merges.filter(m => !descendants.includes(m.from) && !descendants.includes(m.to));
   state.activePath = state.activePath.filter(p => !descendants.includes(p));
+  pruneComboVideos();
   ensureActivePathValid();
   saveState(); render();
 }
@@ -73,6 +74,7 @@ function replaceMovement(nodeId) {
   }
   if (mov) node.movementId = mov.id;
   else node.movementId = addMovement(trimmed);
+  pruneComboVideos();
   saveState(); render();
 }
 

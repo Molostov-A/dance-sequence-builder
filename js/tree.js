@@ -52,6 +52,7 @@ function renderBreadcrumb() {
 }
 
 function renderTree() {
+  rebuildNodeVideoIndex();
   const inner = document.getElementById('treeInner');
   const nodesLayer = document.getElementById('nodesLayer');
   const svg = document.getElementById('linesSvg');
@@ -315,7 +316,22 @@ function renderCardTitle(node) {
     openMovementModal({ movementId: node.movementId });
   };
 
-  row.append(movName, editBtn);
+  const videoCount = getNodeVideoCount(node.id);
+  if (videoCount > 0) {
+    const videoBtn = document.createElement('button');
+    videoBtn.type = 'button';
+    videoBtn.className = 'icon-btn card-video-mov';
+    videoBtn.title = `Видео комбинаций (${videoCount})`;
+    videoBtn.setAttribute('aria-label', videoBtn.title);
+    videoBtn.textContent = videoCount > 1 ? `▶${videoCount}` : '▶';
+    videoBtn.onclick = (e) => {
+      e.stopPropagation();
+      openNodeVideosModal(node.id);
+    };
+    row.append(movName, videoBtn, editBtn);
+  } else {
+    row.append(movName, editBtn);
+  }
   return row;
 }
 
@@ -435,6 +451,21 @@ function renderMiniCard(m) {
     plus.textContent = '+' + m.childCount;
     plus.title = `Ещё ${m.childCount} вложенных`;
     el.appendChild(plus);
+  }
+
+  const videoCount = getNodeVideoCount(node.id);
+  if (videoCount > 0) {
+    const videoBtn = document.createElement('button');
+    videoBtn.type = 'button';
+    videoBtn.className = 'mini-video-btn';
+    videoBtn.title = `Видео комбинаций (${videoCount})`;
+    videoBtn.setAttribute('aria-label', videoBtn.title);
+    videoBtn.textContent = videoCount > 1 ? `▶${videoCount}` : '▶';
+    videoBtn.onclick = (e) => {
+      e.stopPropagation();
+      openNodeVideosModal(node.id);
+    };
+    el.appendChild(videoBtn);
   }
 
   const notes = movementNotes(mov);
