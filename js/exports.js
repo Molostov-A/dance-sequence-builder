@@ -76,29 +76,84 @@ function importJson(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!data.movements || !data.nodes || !data.roots) {
-        alert('Некорректный файл (ожидаются movements, nodes, roots).'); return;
-      }
-      if (!confirm('Заменить текущие данные импортом?')) return;
-      state = data;
-      if (!state.nodeOrder) state.nodeOrder = Object.keys(state.nodes).map(Number);
-      if (!state.nextNodeId) state.nextNodeId = Math.max(0, ...Object.keys(state.nodes).map(Number)) + 1;
-      if (!state.nextMovId) state.nextMovId = Math.max(0, ...state.movements.map(m => m.id)) + 1;
-      if (!state.activePath) state.activePath = [];
-      if (!state.merges) state.merges = [];
-      if (!state.comboVideos || typeof state.comboVideos !== 'object') state.comboVideos = {};
-      if (!Array.isArray(state.concepts)) state.concepts = [];
-      if (!state.nextConceptId) state.nextConceptId = 1;
-      if (!state.treeViewMode) state.treeViewMode = 'path';
-      pruneComboVideos();
-      pruneMentions();
-      ensureActivePathValid();
-      saveState(); render();
-    } catch (err) { alert('Ошибка чтения JSON: ' + err.message); }
-  };
+  reader.onload = (e) => { applyImportedJson(e.target.result); };
   reader.readAsText(file);
   event.target.value = '';
+}
+function applyImportedJson(text) {
+  try {
+    const data = JSON.parse(text);
+    if (!data.movements || !data.nodes || !data.roots) {
+      alert('Некорректный файл (ожидаются movements, nodes, roots).'); return false;
+    }
+    if (!confirm('Заменить текущие данные импортом?')) return false;
+    state = data;
+    if (!state.nodeOrder) state.nodeOrder = Object.keys(state.nodes).map(Number);
+    if (!state.nextNodeId) state.nextNodeId = Math.max(0, ...Object.keys(state.nodes).map(Number)) + 1;
+    if (!state.nextMovId) state.nextMovId = Math.max(0, ...state.movements.map(m => m.id)) + 1;
+    if (!state.activePath) state.activePath = [];
+    if (!state.merges) state.merges = [];
+    if (!state.comboVideos || typeof state.comboVideos !== 'object') state.comboVideos = {};
+    if (!Array.isArray(state.concepts)) state.concepts = [];
+    if (!state.nextConceptId) state.nextConceptId = 1;
+    if (!state.treeViewMode) state.treeViewMode = 'path';
+    pruneComboVideos();
+    pruneMentions();
+    ensureActivePathValid();
+    saveState(); render();
+    return true;
+  } catch (err) { alert('Ошибка чтения JSON: ' + err.message); return false; }
+}
+function normalizeImportUrl(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    if (host === 'drive.google.com' || host === 'docs.google.com') {
+      const m = u.pathname.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
+      let id = m ? m[1] : null;
+      if (!id) id = u.searchParams.get('id');
+      if (id) return `https://drive.google.com/uc?export=download&id=${id}`;
+    }
+  } catch (e) {}
+  return url;
+}
+function openImportModal() {
+  document.getElementById('importUrlError').textContent = '';
+  document.getElementById('importUrlInput').value = '';
+  showImportOptionsStep();
+  document.getElementById('importModal').classList.add('open');
+}
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+function showImportOptionsStep() {
+  document.getElementById('importStep1').classList.remove('hidden');
+  document.getElementById('importStep2').classList.add('hidden');
+}
+function showImportUrlStep() {
+  document.getElementById('importStep1').classList.add('hidden');
+  document.getElementById('importStep2').classList.remove('hidden');
+  document.getElementById('importUrlInput').focus();
+}
+function importFromUrl() {
+  const input = document.getElementById('importUrlInput');
+  const errorEl = document.getElementById('importUrlError');
+  const url = (input.value || '').trim();
+  if (!url) {
+    errorEl.textContent = 'Вставьте ссылку на JSON-файл.';
+    input.focus();
+    return;
+  }
+  errorEl.textContent = '';
+  fetch(normalizeImportUrl(url))
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.text();
+    })
+    .then(text => {
+      if (applyImportedJson(text)) closeImportModal();
+    })
+    .catch(err => {
+      errorEl.textContent = 'Не удалось загрузить JSON: ' + err.message;
+    });
 }

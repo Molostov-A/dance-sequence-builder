@@ -14,9 +14,28 @@ document.getElementById('btnAddRoot').addEventListener('click', addRoot);
 document.getElementById('btnExportCombos').addEventListener('click', exportCombos);
 document.getElementById('btnExportAll').addEventListener('click', exportAll);
 document.getElementById('btnImport').addEventListener('click', () => {
-  document.getElementById('importFile').click();
+  openImportModal();
 });
 document.getElementById('importFile').addEventListener('change', importJson);
+document.getElementById('btnImportLocal').addEventListener('click', () => {
+  closeImportModal();
+  document.getElementById('importFile').click();
+});
+document.getElementById('btnImportUrl').addEventListener('click', showImportUrlStep);
+document.getElementById('btnImportBack').addEventListener('click', showImportOptionsStep);
+document.getElementById('btnImportFetch').addEventListener('click', importFromUrl);
+document.getElementById('btnCloseImport').addEventListener('click', closeImportModal);
+document.getElementById('importUrlInput').addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); importFromUrl(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeImportModal(); }
+});
+document.getElementById('importModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeImportModal();
+});
+document.getElementById('importModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeImportModal(); }
+});
 document.getElementById('btnAddMovement').addEventListener('click', addMovementFromInput);
 document.getElementById('newMovInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addMovementFromInput();

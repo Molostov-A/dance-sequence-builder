@@ -245,6 +245,7 @@ movement.name = conceptTextFromSegments(movement.nameSegments) // произво
 - `exportCombos()` — производные комбинации с детальными данными по каждому шагу; поле `videoUrl` берётся из `comboVideos`.
 - Файлы: `dance_combos_<timestamp>.json`, `dance_combos_combos_<timestamp>.json`.
 - `importJson()` требует `movements`, `nodes`, `roots`; восстанавливает недостающие `nodeOrder`, `nextNodeId`, `nextMovId`, `activePath`, `merges`, `comboVideos`, `concepts`, `nextConceptId`, `treeViewMode`. После импорта — `pruneComboVideos(); pruneMentions(); ensureActivePathValid(); saveState(); render();`.
+- Импорт запускается через `#importModal` (кнопка «Импорт» в шапке): два способа — «Локальный файл» (открывает системный диалог выбора файла, как раньше) и «По ссылке» (поле для URL + `fetch`). `applyImportedJson(text)` — общая точка применения данных для обоих способов. `normalizeImportUrl()` превращает ссылку Google Drive (`/file/d/<id>` или `?id=<id>`) в `https://drive.google.com/uc?export=download&id=<id>`; `importFromUrl()` загружает и применяет JSON.
 - Есть резервный путь: если автоскачивание не сработало, показывается модальное окно `#exportModal` с текстом для ручного копирования.
 
 ## CSS

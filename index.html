@@ -119,6 +119,31 @@
   </div>
 </div>
 
+<div class="modal-bg" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+  <div class="modal import-modal">
+    <h3 id="importTitle">Импорт данных</h3>
+    <p class="hint">Выберите источник JSON-файла.</p>
+    <div id="importStep1">
+      <div class="import-options">
+        <button class="btn" id="btnImportLocal" type="button">Локальный файл</button>
+        <button class="btn secondary" id="btnImportUrl" type="button">По ссылке</button>
+      </div>
+    </div>
+    <div id="importStep2" class="hidden">
+      <label class="import-field-label" for="importUrlInput">Ссылка на JSON-файл</label>
+      <input type="url" id="importUrlInput" class="import-url-input" placeholder="https://drive.google.com/…" autocomplete="off" spellcheck="false">
+      <div class="error" id="importUrlError"></div>
+      <div class="actions">
+        <button class="btn secondary" id="btnImportBack" type="button">Назад</button>
+        <button class="btn" id="btnImportFetch" type="button">Импортировать</button>
+      </div>
+    </div>
+    <div class="actions" id="importCancelRow">
+      <button class="btn secondary" id="btnCloseImport" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="movementModal" role="dialog" aria-modal="true" aria-labelledby="movementModalTitle">
   <div class="modal movement-modal">
     <h3 id="movementModalTitle">Редактировать движение</h3>
