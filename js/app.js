@@ -93,9 +93,6 @@ document.getElementById('conceptShortInput').addEventListener('keydown', (e) => 
   if (e.key === 'Enter') { e.preventDefault(); saveConceptModal(); }
   else if (e.key === 'Escape') { e.preventDefault(); closeConceptModal(); }
 });
-document.getElementById('conceptModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeConceptModal();
-});
 document.getElementById('conceptModal').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { e.preventDefault(); closeConceptModal(); }
 });

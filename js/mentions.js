@@ -13,7 +13,11 @@ function readSegments(el) {
   };
   const walk = (node) => {
     node.childNodes.forEach(child => {
-      if (child.nodeType === 3) { push({ text: child.data }); return; }
+      if (child.nodeType === 3) {
+        const t = child.data.replace(/\u200B/g, '');
+        if (t) push({ text: t });
+        return;
+      }
       if (child.nodeType !== 1) return;
       if (child.classList && child.classList.contains('mention')) {
         push({ conceptId: child.getAttribute('data-concept-id') });
@@ -38,6 +42,7 @@ function writeSegments(el, segments) {
       span.setAttribute('data-concept-id', s.conceptId);
       span.textContent = c ? c.short : (s.text || '');
       el.appendChild(span);
+      el.appendChild(document.createTextNode('\u200B'));
     } else if (s.text) {
       const parts = String(s.text).split('\n');
       parts.forEach((part, i) => {
@@ -224,10 +229,12 @@ function selectMention(conceptId) {
   span.textContent = c.short;
   range.deleteContents();
   range.insertNode(span);
+  const zws = document.createTextNode('\u200B');
+  span.after(zws);
   const sel = window.getSelection();
   sel.removeAllRanges();
   const after = document.createRange();
-  after.setStartAfter(span);
+  after.setStartAfter(zws);
   after.collapse(true);
   sel.addRange(after);
   closeMentionPicker();
