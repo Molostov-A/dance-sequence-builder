@@ -1,15 +1,23 @@
 function addMovementFromInput() {
   const input = document.getElementById('newMovInput');
-  const name = input.value.trim();
+  const segments = mentionSegments(input);
+  const name = mentionText(input).trim();
   if (!name) return;
-  addMovement(name); input.value = '';
+  addMovement(name, '', '', { name: segments });
+  setMentionText(input, '');
 }
-function addMovement(name, lead, follow) {
+function addMovement(name, lead, follow, segments) {
   if (!name) return null;
   const existing = state.movements.find(m => m.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing.id;
   const id = state.nextMovId++;
-  state.movements.push({ id, name, lead: lead || '', follow: follow || '' });
+  const mov = { id, name, lead: lead || '', follow: follow || '' };
+  if (segments) {
+    if (segments.name) mov.nameSegments = segments.name;
+    if (segments.lead) mov.leadSegments = segments.lead;
+    if (segments.follow) mov.followSegments = segments.follow;
+  }
+  state.movements.push(mov);
   saveState(); render();
   return id;
 }
@@ -36,22 +44,21 @@ function openMovementModal(opts) {
     if (!mov) return;
     title.textContent = 'Редактировать движение';
     hint.textContent = `Движение #${mov.id}`;
-    input.value = mov.name;
-    leadInput.value = mov.lead || '';
-    followInput.value = mov.follow || '';
+    setMentionText(input, mov.nameSegments || mov.name);
+    setMentionText(leadInput, mov.leadSegments || mov.lead);
+    setMentionText(followInput, mov.followSegments || mov.follow);
   } else {
     title.textContent = 'Новое движение';
     hint.textContent = 'Отредактируйте название и описание перед добавлением.';
-    input.value = opts.text || '';
-    leadInput.value = opts.lead || '';
-    followInput.value = opts.follow || '';
+    setMentionText(input, opts.text || '');
+    setMentionText(leadInput, opts.lead || '');
+    setMentionText(followInput, opts.follow || '');
   }
 
   movementModalState = opts;
   movementModalFocus = document.activeElement;
   document.getElementById('movementModal').classList.add('open');
-  input.focus();
-  input.select();
+  focusMentionEditor(input, true);
 }
 
 function closeMovementModal() {
@@ -69,9 +76,9 @@ function saveMovementModal() {
   const leadInput = document.getElementById('movementLeadInput');
   const followInput = document.getElementById('movementFollowInput');
   const errorEl = document.getElementById('movementModalError');
-  const name = input.value.trim();
-  const lead = leadInput.value.trim();
-  const follow = followInput.value.trim();
+  const name = mentionText(input).trim();
+  const lead = mentionText(leadInput).trim();
+  const follow = mentionText(followInput).trim();
   if (!name) {
     errorEl.textContent = 'Введите название движения.';
     input.focus();
@@ -88,20 +95,30 @@ function saveMovementModal() {
     if (duplicate) {
       errorEl.textContent = 'Такое движение уже есть в библиотеке.';
       input.focus();
-      input.select();
+      focusMentionEditor(input, true);
       return;
     }
     if (mov.name !== name || (mov.lead || '') !== lead || (mov.follow || '') !== follow) {
       mov.name = name;
+      mov.nameSegments = mentionSegments(input);
       mov.lead = lead;
+      mov.leadSegments = mentionSegments(leadInput);
       mov.follow = follow;
+      mov.followSegments = mentionSegments(followInput);
       saveState();
       render();
       if (typeof syncFormMovementOption === 'function') syncFormMovementOption(mov.id);
     }
     if (typeof modalState.onSaved === 'function') modalState.onSaved(mov);
   } else if (typeof modalState.onSaved === 'function') {
-    modalState.onSaved({ name, lead, follow });
+    modalState.onSaved({
+      name,
+      lead,
+      follow,
+      nameSegments: mentionSegments(input),
+      leadSegments: mentionSegments(leadInput),
+      followSegments: mentionSegments(followInput)
+    });
   }
   closeMovementModal();
 }
@@ -159,7 +176,8 @@ function renderMovements() {
     const idSpan = document.createElement('span');
     idSpan.className = 'mov-id'; idSpan.textContent = '#' + m.id;
     const name = document.createElement('span');
-    name.className = 'name'; name.textContent = m.name;
+    name.className = 'name';
+    renderRichText(nameSegmentsOf(m), name);
     const count = document.createElement('span');
     count.className = 'count';
     count.textContent = usage > 0 ? usage + ' uses' : '0';

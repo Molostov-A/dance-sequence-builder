@@ -18,7 +18,7 @@ function renderRootsBar() {
     const chip = document.createElement('span');
     chip.className = 'root-chip';
     if (rootId === activeRootId) chip.classList.add('active');
-    chip.textContent = mov ? mov.name : '???';
+    renderRichText(nameSegmentsOf(mov), chip);
     chip.onclick = () => setActiveNode(rootId);
     bar.appendChild(chip);
   });
@@ -44,7 +44,7 @@ function renderBreadcrumb() {
     const crumb = document.createElement('span');
     crumb.className = 'crumb';
     if (i === state.activePath.length - 1) crumb.classList.add('current');
-    crumb.textContent = mov ? mov.name : '???';
+    renderRichText(nameSegmentsOf(mov), crumb);
     crumb.title = formatBeatNode(node.beat, node.length);
     crumb.onclick = () => setActiveNode(nodeId);
     bc.appendChild(crumb);
@@ -301,7 +301,7 @@ function renderCardTitle(node) {
   const mov = getMovement(node.movementId);
   const movName = document.createElement('span');
   movName.className = 'mov-name';
-  movName.textContent = mov ? mov.name : '???';
+  renderRichText(nameSegmentsOf(mov), movName);
   const notes = movementNotes(mov);
   movName.title = mov ? (notes ? `${mov.name}\n\n${notes}` : mov.name) : '';
 
@@ -437,7 +437,7 @@ function renderMiniCard(m) {
 
   const name = document.createElement('span');
   name.className = 'mini-name';
-  name.textContent = mov ? mov.name : '???';
+  renderRichText(nameSegmentsOf(mov), name);
 
   const beat = document.createElement('span');
   beat.className = 'mini-beat';

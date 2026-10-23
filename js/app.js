@@ -6,6 +6,7 @@ function render() {
   renderTree();
   renderCombos();
   renderGenerator();
+  renderDictionary();
   setView(state.currentView);
 }
 
@@ -60,6 +61,68 @@ document.getElementById('movementVideosModal').addEventListener('click', (e) => 
 document.getElementById('movementVideosModal').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { e.preventDefault(); closeMovementVideosModal(); }
 });
+document.getElementById('btnAddConcept').addEventListener('click', () => openConceptModal({}));
+document.getElementById('btnSaveConcept').addEventListener('click', saveConceptModal);
+document.getElementById('btnCancelConcept').addEventListener('click', closeConceptModal);
+document.getElementById('btnAddConceptName').addEventListener('click', addConceptName);
+document.getElementById('btnAddConceptMedia').addEventListener('click', addConceptMedia);
+document.getElementById('conceptShortInput').addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); saveConceptModal(); }
+  else if (e.key === 'Escape') { e.preventDefault(); closeConceptModal(); }
+});
+document.getElementById('conceptModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeConceptModal();
+});
+document.getElementById('conceptModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeConceptModal(); }
+});
+document.getElementById('btnCancelConceptDelete').addEventListener('click', closeConceptDeleteModal);
+document.getElementById('btnConfirmConceptDelete').addEventListener('click', confirmConceptDelete);
+document.getElementById('btnReplaceAndDelete').addEventListener('click', replaceAndDeleteConcept);
+document.getElementById('conceptReplaceKind').addEventListener('change', updateConceptReplaceKind);
+document.getElementById('conceptDeleteModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeConceptDeleteModal();
+});
+document.getElementById('conceptDeleteModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeConceptDeleteModal(); }
+});
+document.getElementById('btnOpenMediaLink').addEventListener('click', openMediaLink);
+document.getElementById('btnCloseMedia').addEventListener('click', closeMediaModal);
+document.getElementById('mediaModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeMediaModal();
+});
+document.getElementById('mediaModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeMediaModal(); }
+});
+document.getElementById('mentionSearch').addEventListener('input', (e) => renderMentionList(e.target.value));
+document.getElementById('mentionSearch').addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeMentionPicker(); }
+  else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const n = mentionListCount();
+    if (n) {
+      const a = mentionPickerState ? mentionPickerState.active : -1;
+      setMentionListActive(Math.min(a + 1, n - 1));
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const a = mentionPickerState ? mentionPickerState.active : -1;
+    if (a > 0) setMentionListActive(a - 1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const items = document.querySelectorAll('#mentionList .mention-item');
+    if (items.length) {
+      const a = mentionPickerState ? mentionPickerState.active : -1;
+      const idx = a >= 0 ? a : 0;
+      selectMention(items[idx].getAttribute('data-concept-id'));
+    }
+  }
+});
+document.getElementById('mentionModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeMentionPicker();
+});
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
@@ -79,6 +142,8 @@ document.addEventListener('click', () => {
 ensureActivePathValid();
 document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
 document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
+initMentions();
+pruneMentions();
 render();
 
 window.addEventListener('resize', () => {

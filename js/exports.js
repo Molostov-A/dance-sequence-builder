@@ -90,8 +90,11 @@ function importJson(event) {
       if (!state.activePath) state.activePath = [];
       if (!state.merges) state.merges = [];
       if (!state.comboVideos || typeof state.comboVideos !== 'object') state.comboVideos = {};
+      if (!Array.isArray(state.concepts)) state.concepts = [];
+      if (!state.nextConceptId) state.nextConceptId = 1;
       if (!state.treeViewMode) state.treeViewMode = 'path';
       pruneComboVideos();
+      pruneMentions();
       ensureActivePathValid();
       saveState(); render();
     } catch (err) { alert('Ошибка чтения JSON: ' + err.message); }

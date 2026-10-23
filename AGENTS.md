@@ -22,14 +22,15 @@
 ```
 constants.js → state.js → beat.js → movements.js → nodes.js → path.js
 → layout.js → form.js → tree.js → combos.js → exports.js → panels.js
-→ pan.js → generator.js → app.js (инициализация)
+→ pan.js → generator.js → dictionary.js → media.js → mentions.js
+→ app.js (инициализация)
 ```
 
 `js/pan.js` — единственный модуль, обёрнутый в IIFE. Остальные — plain global.
 
 ### Разделы (views)
 
-Четыре независимых раздела, одновременно виден ровно один:
+Пять независимых разделов, одновременно виден ровно один:
 
 | view | id контейнера | `data-view` | функция рендера |
 |---|---|---|---|
@@ -37,6 +38,7 @@ constants.js → state.js → beat.js → movements.js → nodes.js → path.js
 | Библиотека движений | `#view-library` | `library` | `renderMovements()` |
 | Комбинации | `#view-combos` | `combos` | `renderCombos()` |
 | Генератор | `#view-generator` | `generator` | `renderGenerator()` |
+| Словарь | `#view-dictionary` | `dictionary` | `renderDictionary()` |
 
 Переключение — `setView(viewName)` в `js/state.js`. Она снимает `.active` со всех `.view`, ставит его на `#view-<name>`, подсвечивает пункт `.nav-item`, закрывает меню, сохраняет состояние и перерисовывает целевой раздел.
 
@@ -63,7 +65,7 @@ setView(state.currentView);
 
 ```js
 state = {
-  movements:   [{ id, name, lead, follow }],      // библиотека движений
+  movements:   [{ id, name, lead, follow, nameSegments, leadSegments, followSegments }], // библиотека движений
   roots:       [nodeId, ...],                     // корневые узлы
   nodes:       { [id]: { id, movementId, parentId, beat, length } },
   nodeOrder:   [nodeId, ...],                     // порядок вставки, стабильная итерация
@@ -73,7 +75,9 @@ state = {
   treeViewMode: 'path' | 'all',
   merges:      [{ from: nodeId, to: nodeId }],     // боковые ответвления
   comboVideos: { [comboKey]: url },                // видео готовых комбинаций
-  currentView: 'tree' | 'library' | 'combos' | 'generator'
+  concepts:    [{ id, short, names, definition, definitionSegments, media }], // словарь
+  nextConceptId: 1,                               // генерация id вида 'w<n>'
+  currentView: 'tree' | 'library' | 'combos' | 'generator' | 'dictionary'
 }
 ```
 
@@ -186,6 +190,41 @@ state = {
 
 Если у движения есть видео, в строке библиотеки появляется кнопка `▶`/`▶N` (N — число видео, не число вхождений). Она открывает `#movementVideosModal`: сверху iframe, ниже список видео. В каждом пункте показаны номер комбинации, места (`formatBeat`, например «1-я восьмёрка, 1-4» и «2-я восьмёрка, 1-4») и последовательность движений. Выбор пункта переключает видео. Логика — в `js/movements.js`, разметка — `index.html`, стили — `library.css` и `modal.css`, события — `app.js`.
 
+## Словарь и @-упоминания
+
+`js/dictionary.js`, `js/media.js`, `js/mentions.js`.
+
+### Словарь (понятия)
+
+Пятый раздел `#view-dictionary`. `state.concepts` — массив понятий:
+
+```js
+{ id: 'w3', short: 'ок', names: ['Волна','Октава'],
+  definition: '…', definitionSegments: [ {text:'…'}, {conceptId:'w1'} ],
+  media: [ { type:'image'|'video', url, label } ] }
+```
+
+- `short` — единственное и уникальное (без учёта регистра), редактируемое; `id` генерируется как `w<nextConceptId>` и не меняется.
+- `names` — варианты полного названия; поиск идёт по `short` + всем `names`.
+- `media` — ссылки на картинки/видео (YouTube или Google Drive), открываются в `#mediaModal` через iframe (`parseMediaUrl` в `js/media.js`: YouTube `watch/shorts/embed/live/youtu.be` → `embed/<id>`, Drive `file/d/<id>`/`?id=` → `/preview`).
+- CRUD — модалка `#conceptModal`. Удаление (`deleteConcept`) сканирует использования (`collectConceptUsage`) и, если они есть, предлагает замену (`#conceptDeleteModal`): другое понятие или текст — применяется ко всем вхождениям (`replaceConceptReferences`).
+
+### @-упоминания (гиперссылки)
+
+Имя движения (`name`), поля «Лид»/«Фоллоу» и определение понятия хранятся как **сегменты** параллельно обычной строке:
+
+```js
+movement.nameSegments = [ { text:'Волна через ' }, { conceptId:'w3' } ]
+movement.name = conceptTextFromSegments(movement.nameSegments) // производная строка
+```
+
+`movement.name` остаётся обычной строкой — сортировка, сигнатура генератора, экспорт комбинаций не меняются. Аналогично `leadSegments`/`followSegments` и `concept.definitionSegments`.
+
+- Редактор — contenteditable (`makeMentionEditor` в `js/mentions.js`). Ввод `@` открывает `#mentionModal` (автофокус на поле поиска), фильтр по `short`+`names`, выбор вставляет `short` как `<span class="mention" data-concept-id>`, backspace удаляет как обычный текст, правка символа ссылки превращает её в обычный текст (`normalizeMentions`).
+- Рендер ссылок — `renderRichText(segments, container)`; применяется в дереве, комбинациях, библиотеке, генераторе. Тултип — `#mentionTooltip` (показывается при наведении на `.mention`, содержит short/варианты/определение/медиа-кнопки; делегирование в `initMentionTooltip`).
+- Чистка «битых» ссылок — `pruneMentions()` (вызывается при импорте и на старте).
+- Экспорт/импорт: `concepts`, `nextConceptId` и все `*Segments` попадают в `exportAll()` автоматически (`{...state}`); `importJson()` добавляет дефолты и `pruneMentions()`.
+
 ## Генератор
 
 `js/generator.js`.
@@ -205,7 +244,7 @@ state = {
 - `exportAll()` — весь `state` без `activePath`.
 - `exportCombos()` — производные комбинации с детальными данными по каждому шагу; поле `videoUrl` берётся из `comboVideos`.
 - Файлы: `dance_combos_<timestamp>.json`, `dance_combos_combos_<timestamp>.json`.
-- `importJson()` требует `movements`, `nodes`, `roots`; восстанавливает недостающие `nodeOrder`, `nextNodeId`, `nextMovId`, `activePath`, `merges`, `comboVideos`, `treeViewMode`. После импорта — `pruneComboVideos(); ensureActivePathValid(); saveState(); render();`.
+- `importJson()` требует `movements`, `nodes`, `roots`; восстанавливает недостающие `nodeOrder`, `nextNodeId`, `nextMovId`, `activePath`, `merges`, `comboVideos`, `concepts`, `nextConceptId`, `treeViewMode`. После импорта — `pruneComboVideos(); pruneMentions(); ensureActivePathValid(); saveState(); render();`.
 - Есть резервный путь: если автоскачивание не сработало, показывается модальное окно `#exportModal` с текстом для ручного копирования.
 
 ## CSS
@@ -245,3 +284,5 @@ base.css → layout.css → library.css → tree.css → form.css
 - `js/panels.js` содержит только пустые заглушки `applyPanelState()` и `togglePanel()` — остаток от прежней системы сворачиваемых панелей. Можно удалить вместе со ссылками и константой `PANEL_STATE_KEY` в `constants.js`.
 - `importJson()` не восстанавливает `currentView`, в отличие от `loadState()`. После импорта старого файла раздел сбросится к значению из `state`, которое может отсутствовать.
 - `render()` вызывает рендер всех разделов, а `setView()` дополнительно перерисовывает целевой — двойной рендер одного раздела. На текущих объёмах незаметно.
+- Поля имени/лида/фоллоу и определения — contenteditable (`js/mentions.js`), самое хрупкое место. Проверять: ввод `@`, вставку, backspace внутри ссылки, IME, Enter (в однострочном поле не должен переносить строку).
+- Тултип карточки в дереве (`movementNotes`) собирается из `lead`/`follow` как обычная строка — @-ссылки внутри него не подсвечиваются (подсветка есть в имени движения).

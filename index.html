@@ -13,6 +13,8 @@
 <link rel="stylesheet" href="css/modal.css">
 <link rel="stylesheet" href="css/responsive.css">
 <link rel="stylesheet" href="css/generator.css">
+<link rel="stylesheet" href="css/dictionary.css">
+<link rel="stylesheet" href="css/mentions.css">
 </head>
 <body>
 
@@ -24,6 +26,7 @@
       <div class="nav-item" data-view="library">Библиотека движений</div>
       <div class="nav-item" data-view="combos">Комбинации</div>
       <div class="nav-item" data-view="generator">Генератор</div>
+      <div class="nav-item" data-view="dictionary">Словарь</div>
     </div>
   </div>
   <h1>💃 Связки</h1>
@@ -63,7 +66,7 @@
     <div class="view-body">
       <ul class="mov-list" id="movList"></ul>
       <div class="add-mov-row">
-        <input type="text" id="newMovInput" placeholder="Новое движение">
+        <div id="newMovInput" class="mention-editor single" contenteditable="true" data-placeholder="Новое движение"></div>
         <button class="btn" id="btnAddMovement">+</button>
       </div>
     </div>
@@ -88,6 +91,18 @@
       <div id="genCombosContainer"></div>
     </div>
   </section>
+
+  <section class="view" id="view-dictionary">
+    <div class="view-header">
+      <span>Словарь <span id="dictCount" class="panel-count dict"></span></span>
+    </div>
+    <div class="view-body">
+      <ul class="concept-list" id="conceptList"></ul>
+      <div class="add-mov-row">
+        <button class="btn" id="btnAddConcept" type="button">+ Понятие</button>
+      </div>
+    </div>
+  </section>
 </main>
 
 <div id="formLayer" class="hidden"></div>
@@ -109,11 +124,11 @@
     <h3 id="movementModalTitle">Редактировать движение</h3>
     <p class="hint" id="movementModalHint"></p>
     <label class="movement-field-label" for="movementNameInput">Название</label>
-    <input type="text" id="movementNameInput" class="movement-name-input" autocomplete="off" spellcheck="false">
+    <div id="movementNameInput" class="mention-editor single movement-name-input" contenteditable="true" spellcheck="false"></div>
     <label class="movement-field-label" for="movementLeadInput">Лид</label>
-    <textarea id="movementLeadInput" class="movement-notes-input" rows="3" placeholder="Что делает лид"></textarea>
+    <div id="movementLeadInput" class="mention-editor multiline movement-notes-input" contenteditable="true" data-placeholder="Что делает лид"></div>
     <label class="movement-field-label" for="movementFollowInput">Фоллоу</label>
-    <textarea id="movementFollowInput" class="movement-notes-input" rows="3" placeholder="Что делает фоллоу"></textarea>
+    <div id="movementFollowInput" class="mention-editor multiline movement-notes-input" contenteditable="true" data-placeholder="Что делает фоллоу"></div>
     <div class="error" id="movementModalError"></div>
     <div class="actions">
       <button class="btn" id="btnSaveMovement">Сохранить</button>
@@ -174,6 +189,76 @@
   </div>
 </div>
 
+<div class="modal-bg" id="conceptModal" role="dialog" aria-modal="true" aria-labelledby="conceptModalTitle">
+  <div class="modal concept-modal">
+    <h3 id="conceptModalTitle">Новое понятие</h3>
+    <p class="hint" id="conceptModalHint"></p>
+    <label class="concept-field-label" for="conceptShortInput">Сокращённое наименование</label>
+    <input type="text" id="conceptShortInput" class="concept-short-input" autocomplete="off" spellcheck="false">
+    <label class="concept-field-label">Варианты полного названия</label>
+    <div class="concept-names-list" id="conceptNamesList"></div>
+    <button class="btn secondary concept-add-name" id="btnAddConceptName" type="button">+ Вариант названия</button>
+    <label class="concept-field-label" for="conceptDefinitionInput">Определение</label>
+    <div id="conceptDefinitionInput" class="mention-editor multiline concept-definition-input" contenteditable="true" data-placeholder="Подробное описание понятия"></div>
+    <label class="concept-field-label">Медиа (видео / картинки)</label>
+    <div class="concept-media-list" id="conceptMediaList"></div>
+    <button class="btn secondary" id="btnAddConceptMedia" type="button">+ Медиа</button>
+    <div class="error" id="conceptModalError"></div>
+    <div class="actions">
+      <button class="btn" id="btnSaveConcept">Сохранить</button>
+      <button class="btn secondary" id="btnCancelConcept">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="conceptDeleteModal" role="dialog" aria-modal="true" aria-labelledby="conceptDeleteTitle">
+  <div class="modal concept-delete-modal">
+    <h3 id="conceptDeleteTitle">Удалить понятие</h3>
+    <p class="hint" id="conceptDeleteHint"></p>
+    <div class="concept-delete-usage" id="conceptDeleteUsage"></div>
+    <div class="actions" id="conceptDeleteStep1">
+      <button class="btn secondary" id="btnCancelConceptDelete">Отмена</button>
+      <button class="btn danger" id="btnConfirmConceptDelete">Удалить всё равно</button>
+    </div>
+    <div id="conceptDeleteStep2" class="hidden">
+      <label class="concept-field-label" for="conceptReplaceKind">Заменить на</label>
+      <select id="conceptReplaceKind" class="concept-replace-kind">
+        <option value="concept">Другое понятие</option>
+        <option value="text">Текст</option>
+      </select>
+      <select id="conceptReplaceConcept" class="concept-replace-concept"></select>
+      <input type="text" id="conceptReplaceText" class="concept-replace-text" placeholder="Текст замены">
+      <div class="actions">
+        <button class="btn" id="btnReplaceAndDelete">Заменить и удалить</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mediaModal" role="dialog" aria-modal="true" aria-labelledby="mediaTitle">
+  <div class="modal media-modal">
+    <h3 id="mediaTitle">Медиа</h3>
+    <div class="combo-video-player">
+      <div class="combo-video-empty" id="mediaEmpty">Не удалось открыть ссылку</div>
+      <iframe id="mediaFrame" class="combo-video-frame" title="Медиа" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen scrolling="no" hidden></iframe>
+    </div>
+    <div class="actions">
+      <button class="btn secondary" id="btnOpenMediaLink" disabled>Открыть в новой вкладке</button>
+      <button class="btn secondary" id="btnCloseMedia">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mentionModal" role="dialog" aria-modal="true" aria-labelledby="mentionTitle">
+  <div class="modal mention-modal">
+    <h3 id="mentionTitle">Вставить понятие</h3>
+    <input type="text" id="mentionSearch" class="mention-search" placeholder="Поиск по сокращению или названию" autocomplete="off" spellcheck="false">
+    <div class="mention-list" id="mentionList"></div>
+  </div>
+</div>
+
+<div id="mentionTooltip" class="mention-tooltip hidden"></div>
+
 <script src="js/constants.js"></script>
 <script src="js/state.js"></script>
 <script src="js/beat.js"></script>
@@ -188,6 +273,9 @@
 <script src="js/panels.js"></script>
 <script src="js/pan.js"></script>
 <script src="js/generator.js"></script>
+<script src="js/dictionary.js"></script>
+<script src="js/media.js"></script>
+<script src="js/mentions.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

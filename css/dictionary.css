@@ -1,0 +1,73 @@
+.concept-list { list-style: none; padding: 0; margin: 0 0 10px; }
+.concept-list li { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 4px; }
+.concept-list li:hover { background: #f0f2f5; }
+.concept-list .concept-short {
+  font-family: monospace; font-weight: 600; color: #2c3e50;
+  background: #eef1f4; padding: 2px 8px; border-radius: 4px;
+  flex-shrink: 0;
+}
+.concept-list .concept-names { flex: 1; color: #666; font-size: 13px; word-break: break-word; }
+.concept-list .count {
+  font-size: 11px; color: #999; background: #eef1f4;
+  padding: 1px 6px; border-radius: 8px; flex-shrink: 0;
+}
+.concept-list .count.used { color: #27ae60; background: #eafaf1; }
+
+.concept-modal {
+  width: 520px; max-height: 92vh; overflow-y: auto;
+}
+.concept-field-label {
+  display: block; font-size: 12px; color: #555;
+  margin: 8px 0 4px;
+}
+.concept-field-label:first-of-type { margin-top: 0; }
+.concept-short-input {
+  width: 100%; padding: 9px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 16px;
+}
+.concept-definition-input {
+  width: 100%; min-height: 90px; padding: 8px;
+  border: 1px solid #ccc; border-radius: 4px;
+  font-family: inherit; font-size: 14px; line-height: 1.4;
+  resize: vertical;
+}
+.concept-names-list, .concept-media-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.concept-name-row {
+  display: flex; gap: 6px; align-items: center;
+}
+.concept-name-row input {
+  flex: 1; padding: 7px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 14px; min-width: 0;
+}
+.concept-media-row {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+.concept-media-row select {
+  padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+}
+.concept-media-row input {
+  padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+}
+.concept-media-row .concept-media-url { flex: 1 1 100%; min-width: 0; }
+.concept-media-row .concept-media-label { flex: 1; min-width: 0; }
+.concept-add-name { margin-top: 6px; }
+.concept-modal .error {
+  color: #c0392b; font-size: 12px; min-height: 16px;
+  margin-top: 6px;
+}
+
+.concept-delete-modal {
+  width: 440px; max-height: 90vh; overflow-y: auto;
+}
+.concept-delete-usage {
+  max-height: 180px; overflow-y: auto;
+  margin: 4px 0 8px; padding-left: 18px;
+}
+.concept-delete-usage li { font-size: 13px; color: #444; margin-bottom: 3px; }
+.concept-replace-kind, .concept-replace-concept, .concept-replace-text {
+  width: 100%; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 14px; margin-top: 4px;
+}
+.concept-replace-concept, .concept-replace-text { margin-top: 6px; }

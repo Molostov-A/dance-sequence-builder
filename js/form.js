@@ -73,12 +73,13 @@ function submitForm() {
   const lenSelect = formEl.querySelector('.length-select');
   const errorEl = formEl.querySelector('.error');
   let movementId = null;
-  const newName = newInput.value.trim();
+  const newName = mentionText(newInput).trim();
   if (newName) {
     movementId = addMovement(
       newName,
       draftLead ? draftLead.value : '',
-      draftFollow ? draftFollow.value : ''
+      draftFollow ? draftFollow.value : '',
+      { name: mentionSegments(newInput) }
     );
   } else if (select.value) movementId = parseInt(select.value, 10);
   if (!movementId) { errorEl.textContent = 'Выберите движение или введите новое.'; return; }
@@ -150,30 +151,26 @@ function renderFormContent() {
   row2.className = 'row';
   const label2 = document.createElement('label');
   label2.textContent = 'Новое движение:';
-  const newInput = document.createElement('input');
-  newInput.type = 'text';
-  newInput.className = 'new-mov-input';
-  newInput.placeholder = 'название';
-  newInput.setAttribute('autocomplete', 'off');
-  newInput.setAttribute('autocorrect', 'off');
-  newInput.setAttribute('autocapitalize', 'off');
-  newInput.setAttribute('spellcheck', 'false');
+  const newInput = document.createElement('div');
+  newInput.className = 'new-mov-input mention-editor single';
+  newInput.contentEditable = 'true';
+  newInput.setAttribute('data-placeholder', 'название');
   const inputRow = document.createElement('div');
   inputRow.className = 'mov-select-row';
   const editNewBtn = createFormEditButton('form-edit-new', 'Открыть движение в модальном окне');
   editNewBtn.onclick = () => {
     const currentInput = formNewInput();
-    if (!currentInput || !currentInput.value.trim()) return;
+    if (!currentInput || !mentionText(currentInput).trim()) return;
     const draftLead = document.querySelector('#formLayer .new-mov-lead');
     const draftFollow = document.querySelector('#formLayer .new-mov-follow');
     openMovementModal({
-      text: currentInput.value.trim(),
+      text: mentionText(currentInput).trim(),
       lead: draftLead ? draftLead.value : '',
       follow: draftFollow ? draftFollow.value : '',
       onSaved: (draft) => {
         const input = formNewInput();
         if (!input) return;
-        input.value = draft.name;
+        setMentionText(input, draft.nameSegments || draft.name);
         const lead = document.querySelector('#formLayer .new-mov-lead');
         const follow = document.querySelector('#formLayer .new-mov-follow');
         if (lead) lead.value = draft.lead;
@@ -189,10 +186,13 @@ function renderFormContent() {
   draftFollow.type = 'hidden';
   draftFollow.className = 'new-mov-follow';
   inputRow.append(newInput, editNewBtn, draftLead, draftFollow);
-  newInput.oninput = () => {
-    if (newInput.value.trim()) formMovSelect().value = '';
-    updateFormEditButtons();
-  };
+  makeMentionEditor(newInput, {
+    multiline: false,
+    onInput: () => {
+      if (mentionText(newInput).trim()) formMovSelect().value = '';
+      updateFormEditButtons();
+    }
+  });
   row2.append(label2, inputRow);
   frag.appendChild(row2);
 
@@ -231,7 +231,7 @@ function formNewInput() { return document.querySelector('#formLayer .new-mov-inp
 function formMovSelect() { return document.querySelector('#formLayer .mov-select'); }
 function resetFormDraft() {
   const input = formNewInput();
-  if (input) input.value = '';
+  if (input) setMentionText(input, '');
   const lead = document.querySelector('#formLayer .new-mov-lead');
   const follow = document.querySelector('#formLayer .new-mov-follow');
   if (lead) lead.value = '';
@@ -252,7 +252,7 @@ function updateFormEditButtons() {
   const selectBtn = document.querySelector('#formLayer .form-edit-selected');
   const inputBtn = document.querySelector('#formLayer .form-edit-new');
   if (selectBtn) selectBtn.disabled = !(select && select.value);
-  if (inputBtn) inputBtn.disabled = !(input && input.value.trim());
+  if (inputBtn) inputBtn.disabled = !(input && mentionText(input).trim());
 }
 function syncFormMovementOption(movementId) {
   const mov = getMovement(movementId);

@@ -1,0 +1,96 @@
+.mention-editor {
+  outline: none;
+  font-family: inherit;
+}
+.mention-editor:empty::before {
+  content: attr(data-placeholder);
+  color: #999;
+}
+.mention-editor.single {
+  min-height: 34px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mention-editor.multiline {
+  min-height: 64px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.movement-notes-input.mention-editor,
+.concept-definition-input.mention-editor { height: auto; }
+
+.add-mov-row .mention-editor {
+  flex: 1; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 16px; min-width: 0;
+}
+
+.mov-select-row .new-mov-input {
+  flex: 1; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 14px; min-width: 0;
+}
+
+.mention {
+  color: #1a6fb5;
+  text-decoration: underline;
+  cursor: help;
+}
+.mention:hover {
+  color: #0b4f8a;
+  text-decoration: underline;
+}
+
+.mention-modal {
+  width: 420px; max-height: 80vh; overflow-y: auto;
+}
+.mention-search {
+  width: 100%; padding: 10px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 16px; margin-bottom: 8px;
+}
+.mention-list {
+  max-height: 320px; overflow-y: auto;
+}
+.mention-item {
+  width: 100%; display: flex; align-items: baseline; gap: 8px;
+  text-align: left; font-family: inherit; color: inherit;
+  background: #f8f9fb; border: 1px solid #e3e7ec;
+  border-radius: 6px; padding: 7px 9px; margin-bottom: 6px;
+  cursor: pointer;
+}
+.mention-item:hover { background: #eef5fb; border-color: #cfe0ee; }
+.mention-item.active {
+  background: #eef5fb; border-color: #3498db;
+  box-shadow: inset 3px 0 0 #3498db;
+}
+.mention-item-short {
+  font-family: monospace; font-weight: 600; color: #2c3e50;
+  background: #eef1f4; padding: 1px 6px; border-radius: 4px;
+  flex-shrink: 0;
+}
+.mention-item-names {
+  font-size: 12px; color: #7f8c8d;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mention-empty { color: #999; font-size: 13px; padding: 10px 0; text-align: center; }
+
+.mention-tooltip {
+  position: fixed; z-index: 300; max-width: 320px;
+  background: #2c3e50; color: #fff; border-radius: 6px;
+  padding: 10px 12px; font-size: 12px; line-height: 1.4;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+}
+.mention-tooltip.hidden { display: none; }
+.mention-tooltip-short {
+  font-family: monospace; font-weight: 600; font-size: 13px;
+  background: rgba(255,255,255,0.15); display: inline-block;
+  padding: 1px 7px; border-radius: 4px; margin-bottom: 4px;
+}
+.mention-tooltip-names { color: #cfd8e3; margin-bottom: 4px; }
+.mention-tooltip-definition { margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+.mention-tooltip .mention { color: #9ec5e8; }
+.mention-tooltip-media {
+  display: inline-block; margin: 6px 6px 0 0; padding: 3px 8px;
+  background: rgba(255,255,255,0.12); color: #fff; border: none;
+  border-radius: 4px; font-size: 11px; cursor: pointer;
+}
+.mention-tooltip-media:hover { background: rgba(255,255,255,0.22); }

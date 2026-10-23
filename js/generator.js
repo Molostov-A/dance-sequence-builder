@@ -180,7 +180,7 @@ function renderGenTree() {
       const mov = getMovement(node.movementId);
       const movSpan = document.createElement('span');
       movSpan.className = 'gen-seq-mov';
-      movSpan.textContent = mov ? mov.name : '???';
+      renderRichText(nameSegmentsOf(mov), movSpan);
       const beatSpan = document.createElement('span');
       beatSpan.className = 'gen-seq-beat';
       beatSpan.textContent = ' (' + formatBeatShort(node.beat, node.length) + ')';
@@ -249,7 +249,7 @@ function renderGenCombos() {
     const mov = getMovement(node.movementId);
     const movSpan = document.createElement('span');
     movSpan.className = 'mov';
-    movSpan.textContent = mov ? mov.name : '???';
+    renderRichText(nameSegmentsOf(mov), movSpan);
     const beatSpan = document.createElement('span');
     beatSpan.className = 'beat';
     beatSpan.textContent = ' (' + formatBeatNode(node.beat, node.length) + ')';

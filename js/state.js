@@ -5,6 +5,7 @@ function initialState() {
     movements: [], roots: [], nodes: {}, nodeOrder: [],
     nextNodeId: 1, nextMovId: 1, activePath: [],
     treeViewMode: 'path', merges: [], comboVideos: {},
+    concepts: [], nextConceptId: 1,
     currentView: 'tree'
   };
 }
@@ -18,6 +19,8 @@ function loadState() {
     const data = JSON.parse(raw);
     if (!data.merges) data.merges = [];
     if (!data.comboVideos || typeof data.comboVideos !== 'object') data.comboVideos = {};
+    if (!Array.isArray(data.concepts)) data.concepts = [];
+    if (!data.nextConceptId) data.nextConceptId = 1;
     if (!data.currentView) data.currentView = 'tree';
     return data;
   } catch (e) { return null; }
@@ -44,4 +47,5 @@ function setView(view) {
   else if (view === 'combos') renderCombos();
   else if (view === 'generator') renderGenerator();
   else if (view === 'library') renderMovements();
+  else if (view === 'dictionary') renderDictionary();
 }

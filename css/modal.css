@@ -146,3 +146,8 @@
   max-width: 100%; font-size: 11px; color: #7f8c8d;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+.media-modal {
+  width: 720px; max-height: 92vh; overflow-y: auto;
+}
+.media-modal .btn:disabled { opacity: 0.45; cursor: not-allowed; }
