@@ -418,7 +418,6 @@ function renderSpineCard(c) {
   if (c.isActive) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
-    actions.className = 'card-actions';
 
     const replaceBtn = document.createElement('button');
     replaceBtn.className = 'icon-btn'; replaceBtn.title = 'Заменить'; replaceBtn.textContent = '⇄';
@@ -439,6 +438,12 @@ function renderSpineCard(c) {
     const delBtn = document.createElement('button');
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
+
+    const prepBtn = document.createElement('button');
+    prepBtn.className = 'icon-btn' + (node.preparation && node.preparation.movementId ? ' prep-active' : '');
+    prepBtn.title = 'Подготовка (параллельное движение)';
+    prepBtn.textContent = '‖';
+    prepBtn.onclick = (e) => { e.stopPropagation(); openPrepPicker(node.id); };
 
     const existingMerge = state.merges.find(m => m.from === node.id);
     const mergeBtn = document.createElement('button');
@@ -461,7 +466,7 @@ function renderSpineCard(c) {
       }
     }
 
-    actions.append(replaceBtn, addBtn, mergeBtn, delBtn);
+    actions.append(replaceBtn, addBtn, mergeBtn, prepBtn, delBtn);
     el.appendChild(actions);
   }
 
@@ -697,9 +702,9 @@ function renderFullTreeNode(c) {
 
   el.append(titleRow, badge);
   renderPreparationBlock(node, el);
-  renderPreparationBlock(node, el);
 
-  if (c.isActive) {
+  const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
+  if (isActive) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
 
@@ -723,6 +728,12 @@ function renderFullTreeNode(c) {
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
 
+    const prepBtn = document.createElement('button');
+    prepBtn.className = 'icon-btn' + (node.preparation && node.preparation.movementId ? ' prep-active' : '');
+    prepBtn.title = 'Подготовка (параллельное движение)';
+    prepBtn.textContent = '‖';
+    prepBtn.onclick = (e) => { e.stopPropagation(); openPrepPicker(node.id); };
+
     const existingMerge = state.merges.find(m => m.from === node.id);
     const mergeBtn = document.createElement('button');
     mergeBtn.className = 'icon-btn' + (existingMerge ? ' merge-active' : '');
@@ -744,7 +755,7 @@ function renderFullTreeNode(c) {
       }
     }
 
-    actions.append(replaceBtn, addBtn, mergeBtn, delBtn);
+    actions.append(replaceBtn, addBtn, mergeBtn, prepBtn, delBtn);
     el.appendChild(actions);
   }
 

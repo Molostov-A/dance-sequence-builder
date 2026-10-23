@@ -86,13 +86,14 @@ function submitForm() {
   const length = parseInt(lenSelect.value, 10);
   if (openFormState.isRoot) addRootNode(movementId, length);
   else addChildNode(openFormState.parentId, movementId, openFormState.beat, length);
-    if (openFormState.draftPreparation && openFormState.draftPreparation.movementId) {
-      const pmov = getMovement(openFormState.draftPreparation.movementId);
-      if (pmov) {
-        state.nodes[last].preparation = { movementId: pmov.id };
-        saveState();
-      }
+  if (openFormState.draftPreparation && openFormState.draftPreparation.movementId) {
+    const newId = state.activePath[state.activePath.length - 1];
+    const pmov = getMovement(openFormState.draftPreparation.movementId);
+    if (newId && state.nodes[newId] && pmov) {
+      state.nodes[newId].preparation = { movementId: pmov.id };
+      saveState(); render();
     }
+  }
   closeForm();
 }
 function renderFormContent() {
@@ -264,12 +265,17 @@ function renderFormContent() {
   function updatePrepForm() {
     if (!openFormState) return;
     const node = openFormState.nodeId ? state.nodes[openFormState.nodeId] : null;
-    if (node && node.preparation && node.preparation.movementId) {
-      const pm = getMovement(node.preparation.movementId);
-      prepNameEl.textContent = pm ? pm.name : `Движение #${node.preparation.movementId}`;
+    const draftId = (!node && openFormState.draftPreparation) ? openFormState.draftPreparation.movementId : null;
+    const prepId = (node && node.preparation && node.preparation.movementId)
+      ? node.preparation.movementId
+      : draftId;
+    if (prepId) {
+      const pm = getMovement(prepId);
+      prepNameEl.textContent = pm ? pm.name : `Движение #${prepId}`;
       prepNameEl.classList.toggle('muted', !pm);
       prepEdit.disabled = !pm;
       prepClear.disabled = false;
+    } else {
       prepNameEl.textContent = 'Не добавлена';
       prepNameEl.classList.add('muted');
       prepEdit.disabled = true;

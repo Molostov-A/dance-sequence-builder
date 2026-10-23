@@ -209,6 +209,11 @@
   color: #9b59b6;
   border-color: #d9c8eb;
 }
+.icon-btn.prep-active {
+  background: #eaf6f0;
+  color: #1e8449;
+  border-color: #cfe8db;
+}
 .node-card.has-merge-in {
   border-left: 3px solid #9b59b6;
 }
