@@ -68,6 +68,18 @@
   width: 100%; padding: 9px; border: 1px solid #ccc;
   border-radius: 4px; font-size: 14px;
 }
+.combo-video-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.combo-video-row {
+  display: flex; gap: 6px; align-items: center;
+  padding: 4px; border: 1px solid #e3e7ec; border-radius: 6px;
+}
+.combo-video-row.active { border-color: #3498db; background: #eef5fb; }
+.combo-video-row-input {
+  flex: 1; padding: 8px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 14px; min-width: 0;
+}
 .combo-video-modal .error {
   color: #c0392b; font-size: 12px; min-height: 16px;
   margin-top: 6px;
@@ -168,4 +180,13 @@
 }
 .import-modal .error {
   color: #c0392b; font-size: 12px; min-height: 16px; margin-top: 6px;
+}
+
+.combo-description-modal {
+  width: 520px; max-height: 90vh; overflow-y: auto;
+}
+.mention-editor.multiline.combo-description-input {
+  width: 100%; min-height: 120px; padding: 8px;
+  border: 1px solid #ccc; border-radius: 4px;
+  font-family: inherit; font-size: 14px; line-height: 1.4;
 }

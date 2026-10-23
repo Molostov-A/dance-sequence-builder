@@ -6,8 +6,21 @@ function initialState() {
     nextNodeId: 1, nextMovId: 1, activePath: [],
     treeViewMode: 'path', merges: [], comboVideos: {},
     concepts: [], nextConceptId: 1,
+    comboDescriptions: {}, comboDescriptionSegments: {},
     currentView: 'tree'
   };
+}
+function normalizeComboVideos(data) {
+  if (!data.comboVideos || typeof data.comboVideos !== 'object') {
+    data.comboVideos = {};
+    return;
+  }
+  Object.keys(data.comboVideos).forEach(key => {
+    const v = data.comboVideos[key];
+    if (typeof v === 'string') data.comboVideos[key] = [v];
+    else if (Array.isArray(v)) data.comboVideos[key] = v.filter(x => typeof x === 'string');
+    else delete data.comboVideos[key];
+  });
 }
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -18,9 +31,11 @@ function loadState() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data.merges) data.merges = [];
-    if (!data.comboVideos || typeof data.comboVideos !== 'object') data.comboVideos = {};
+    normalizeComboVideos(data);
     if (!Array.isArray(data.concepts)) data.concepts = [];
     if (!data.nextConceptId) data.nextConceptId = 1;
+    if (!data.comboDescriptions || typeof data.comboDescriptions !== 'object') data.comboDescriptions = {};
+    if (!data.comboDescriptionSegments || typeof data.comboDescriptionSegments !== 'object') data.comboDescriptionSegments = {};
     if (!data.currentView) data.currentView = 'tree';
     return data;
   } catch (e) { return null; }

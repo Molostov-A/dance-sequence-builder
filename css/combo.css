@@ -8,6 +8,10 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px;
 }
+.combo-head-actions {
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+}
 .combo-list .combo-idx { color: #999; font-size: 11px; }
 .combo-video-btn {
   background: #eef5fb; color: #2980b9; border: 1px solid #cfe0ee;
@@ -19,6 +23,21 @@
   background: #e8f6ee; color: #1e8449; border-color: #bfe3cc;
 }
 .combo-video-btn.has-video:hover { background: #d7efdf; }
+.combo-desc-btn {
+  background: #f4f6f8; color: #555; border: 1px solid #dfe4e9;
+  border-radius: 4px; padding: 3px 8px; font-size: 11px;
+  cursor: pointer; white-space: nowrap;
+}
+.combo-desc-btn:hover { background: #e9edf1; }
+.combo-desc-btn.has-desc {
+  background: #fdf3e7; color: #b9770e; border-color: #f0d8b5;
+}
+.combo-desc-btn.has-desc:hover { background: #faead2; }
+.combo-desc {
+  margin-top: 6px; padding: 6px 8px; background: #fbfbfc;
+  border-left: 3px solid #dfe4e9; border-radius: 4px;
+  font-size: 12px; color: #555; white-space: pre-wrap; word-break: break-word;
+}
 .combo-list .mov { color: #2c3e50; font-weight: 500; }
 .combo-list .beat { color: #27ae60; font-size: 12px; }
 .combo-list .arrow { color: #b0b8c1; margin: 0 4px; }

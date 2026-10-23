@@ -53,16 +53,19 @@ document.getElementById('movementModal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeMovementModal();
 });
 document.getElementById('btnSaveComboVideo').addEventListener('click', saveComboVideo);
-document.getElementById('btnRemoveComboVideo').addEventListener('click', removeComboVideo);
+document.getElementById('btnAddComboVideo').addEventListener('click', addComboVideoRow);
 document.getElementById('btnOpenComboVideoLink').addEventListener('click', openComboVideoLink);
 document.getElementById('btnCloseComboVideo').addEventListener('click', closeComboVideoModal);
-document.getElementById('comboVideoInput').addEventListener('keydown', (e) => {
-  if (e.isComposing) return;
-  if (e.key === 'Enter') { e.preventDefault(); saveComboVideo(); }
-  else if (e.key === 'Escape') { e.preventDefault(); closeComboVideoModal(); }
-});
 document.getElementById('comboVideoModal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeComboVideoModal();
+});
+document.getElementById('btnSaveComboDescription').addEventListener('click', saveComboDescription);
+document.getElementById('btnCloseComboDescription').addEventListener('click', closeComboDescriptionModal);
+document.getElementById('comboDescriptionModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeComboDescriptionModal();
+});
+document.getElementById('comboDescriptionModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeComboDescriptionModal(); }
 });
 document.getElementById('btnOpenNodeVideoLink').addEventListener('click', openNodeVideoLink);
 document.getElementById('btnCloseNodeVideos').addEventListener('click', closeNodeVideosModal);

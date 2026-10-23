@@ -165,19 +165,30 @@
 <div class="modal-bg" id="comboVideoModal" role="dialog" aria-modal="true" aria-labelledby="comboVideoTitle">
   <div class="modal combo-video-modal">
     <h3 id="comboVideoTitle">Видео связки</h3>
-    <p class="hint">Вставьте ссылку на видеофайл Google Диска. В доступе к файлу выберите «Все, у кого есть ссылка».</p>
+    <p class="hint">Вставьте ссылки на видеофайлы Google Диска. В доступе к файлу выберите «Все, у кого есть ссылка».</p>
     <div class="combo-video-player">
       <div class="combo-video-empty" id="comboVideoEmpty">Видео пока не прикреплено</div>
       <iframe id="comboVideoFrame" class="combo-video-frame" title="Видео связки" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen scrolling="no" hidden></iframe>
     </div>
-    <label class="combo-video-label" for="comboVideoInput">Ссылка на видео</label>
-    <input type="url" id="comboVideoInput" class="combo-video-input" placeholder="https://drive.google.com/file/d/.../view" autocomplete="off" spellcheck="false">
+    <label class="combo-video-label">Ссылки на видео</label>
+    <div class="combo-video-list" id="comboVideoList"></div>
+    <button class="btn secondary" id="btnAddComboVideo" type="button">+ Добавить видео</button>
     <div class="error" id="comboVideoError"></div>
     <div class="actions combo-video-actions">
       <button class="btn secondary" id="btnOpenComboVideoLink" disabled>Открыть в новой вкладке</button>
-      <button class="btn secondary danger" id="btnRemoveComboVideo" disabled>Удалить</button>
       <button class="btn" id="btnSaveComboVideo">Сохранить</button>
       <button class="btn secondary" id="btnCloseComboVideo">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="comboDescriptionModal" role="dialog" aria-modal="true" aria-labelledby="comboDescriptionTitle">
+  <div class="modal combo-description-modal">
+    <h3 id="comboDescriptionTitle">Описание связки</h3>
+    <div id="comboDescriptionInput" class="mention-editor multiline combo-description-input" contenteditable="true" data-placeholder="Описание связки"></div>
+    <div class="actions">
+      <button class="btn" id="btnSaveComboDescription">Сохранить</button>
+      <button class="btn secondary" id="btnCloseComboDescription">Закрыть</button>
     </div>
   </div>
 </div>

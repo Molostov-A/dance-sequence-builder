@@ -53,7 +53,8 @@ function exportCombos() {
       const totalBeats = combo.reduce((s, n) => s + n.length, 0);
       return {
         index: idx + 1, totalBeats, squares: totalBeats / 32,
-        videoUrl: getComboVideo(combo),
+        videos: getComboVideos(combo),
+        description: getComboDescription(combo),
         steps: combo.map(n => {
           const mov = getMovement(n.movementId);
           return {
@@ -93,14 +94,17 @@ function applyImportedJson(text) {
     if (!state.nextMovId) state.nextMovId = Math.max(0, ...state.movements.map(m => m.id)) + 1;
     if (!state.activePath) state.activePath = [];
     if (!state.merges) state.merges = [];
-    if (!state.comboVideos || typeof state.comboVideos !== 'object') state.comboVideos = {};
+    normalizeComboVideos(state);
     if (!Array.isArray(state.concepts)) state.concepts = [];
     if (!state.nextConceptId) state.nextConceptId = 1;
+    if (!state.comboDescriptions || typeof state.comboDescriptions !== 'object') state.comboDescriptions = {};
+    if (!state.comboDescriptionSegments || typeof state.comboDescriptionSegments !== 'object') state.comboDescriptionSegments = {};
     if (!state.treeViewMode) state.treeViewMode = 'path';
     pruneComboVideos();
-    pruneMentions();
-    ensureActivePathValid();
-    saveState(); render();
+      pruneComboDescriptions();
+      pruneMentions();
+      ensureActivePathValid();
+      saveState(); render();
     return true;
   } catch (err) { alert('Ошибка чтения JSON: ' + err.message); return false; }
 }

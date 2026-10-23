@@ -64,6 +64,13 @@ function pruneMentions() {
     c.definitionSegments = clean(c.definitionSegments);
     if (c.definitionSegments) c.definition = conceptTextFromSegments(c.definitionSegments);
   });
+  const descSegments = state.comboDescriptionSegments;
+  if (descSegments) {
+    Object.keys(descSegments).forEach(key => {
+      descSegments[key] = clean(descSegments[key]);
+      if (state.comboDescriptions) state.comboDescriptions[key] = conceptTextFromSegments(descSegments[key]);
+    });
+  }
 }
 
 function renderDictionary() {
