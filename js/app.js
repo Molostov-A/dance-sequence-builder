@@ -146,17 +146,65 @@ document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stop
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
 
-// Navigation dropdown
+// Sidebar navigation
+const sidebarEl = document.getElementById('sidebar');
+
+function navIsPinned() { return !!state.navPinned; }
+function navIsOpen() { return document.body.classList.contains('nav-open'); }
+function isNarrowScreen() { return window.matchMedia('(max-width: 900px)').matches; }
+function navCanAutoClose() { return navIsOpen() && (!navIsPinned() || isNarrowScreen()); }
+
+function updateNavPinUi() {
+  document.body.classList.toggle('nav-pinned', navIsPinned());
+  const btn = document.getElementById('btnPinSidebar');
+  btn.classList.toggle('pinned', navIsPinned());
+  btn.setAttribute('aria-pressed', navIsPinned() ? 'true' : 'false');
+  btn.title = navIsPinned()
+    ? 'Открепить меню: будет сворачиваться при потере фокуса'
+    : 'Закрепить меню: не будет сворачиваться';
+}
+function openNav() { document.body.classList.add('nav-open'); }
+function closeNav() { document.body.classList.remove('nav-open'); }
+function toggleNav() { if (navIsOpen()) closeNav(); else openNav(); }
+function setNavPinned(pinned) {
+  state.navPinned = pinned;
+  updateNavPinUi();
+  saveState();
+}
+
 document.getElementById('navToggle').addEventListener('click', (e) => {
   e.stopPropagation();
-  document.getElementById('navMenu').classList.toggle('open');
+  toggleNav();
+});
+document.getElementById('btnPinSidebar').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setNavPinned(!navIsPinned());
 });
 document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => setView(item.dataset.view));
+  item.addEventListener('click', () => {
+    setView(item.dataset.view);
+    if (isNarrowScreen()) closeNav();
+  });
 });
-document.addEventListener('click', () => {
-  document.getElementById('navMenu').classList.remove('open');
+document.addEventListener('click', (e) => {
+  if (!navCanAutoClose()) return;
+  if (sidebarEl.contains(e.target)) return;
+  if (e.target.closest('#navToggle')) return;
+  closeNav();
 });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !navCanAutoClose()) return;
+  closeNav();
+});
+sidebarEl.addEventListener('focusout', (e) => {
+  if (!navCanAutoClose()) return;
+  if (!e.relatedTarget) return;
+  if (sidebarEl.contains(e.relatedTarget)) return;
+  closeNav();
+});
+
+updateNavPinUi();
+if (navIsPinned() && !isNarrowScreen()) openNav();
 
 ensureActivePathValid();
 document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');

@@ -7,7 +7,7 @@ function initialState() {
     treeViewMode: 'path', merges: [], comboVideos: {},
     concepts: [], nextConceptId: 1,
     comboDescriptions: {}, comboDescriptionSegments: {},
-    currentView: 'tree'
+    currentView: 'tree', navPinned: true
   };
 }
 function normalizeComboVideos(data) {
@@ -37,6 +37,7 @@ function loadState() {
     if (!data.comboDescriptions || typeof data.comboDescriptions !== 'object') data.comboDescriptions = {};
     if (!data.comboDescriptionSegments || typeof data.comboDescriptionSegments !== 'object') data.comboDescriptionSegments = {};
     if (!data.currentView) data.currentView = 'tree';
+    if (typeof data.navPinned !== 'boolean') data.navPinned = true;
     return data;
   } catch (e) { return null; }
 }
@@ -56,7 +57,6 @@ function setView(view) {
   document.querySelectorAll('.nav-item').forEach(item => {
     item.classList.toggle('active', item.dataset.view === view);
   });
-  document.getElementById('navMenu').classList.remove('open');
   saveState();
   if (view === 'tree') renderTree();
   else if (view === 'combos') renderCombos();

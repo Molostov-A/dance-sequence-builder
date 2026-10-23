@@ -9,7 +9,8 @@
 Сборки нет. Проверка изменений — открыть `index.html` в браузере (работает и по `file://`, и с GitHub Pages). Проверять нужно вручную:
 
 - десктоп и мобильная ширина ( breakpoints: 900px и 500px);
-- переключение всех 4 разделов через меню «☰ Разделы»;
+- переключение всех 5 разделов через боковое меню (кнопка «☰ Разделы»);
+- закрепление меню (📌): закреплённое не сворачивается, откреплённое сворачивается по клику вне/`Esc`/потере фокуса;
 - оба режима дерева (`⌨` ветка / `⊞` все ветви);
 - открытие формы, панорамирование доски, merge ответвлений, генератор, экспорт/импорт.
 
@@ -40,9 +41,19 @@ constants.js → state.js → beat.js → movements.js → nodes.js → path.js
 | Генератор | `#view-generator` | `generator` | `renderGenerator()` |
 | Словарь | `#view-dictionary` | `dictionary` | `renderDictionary()` |
 
-Переключение — `setView(viewName)` в `js/state.js`. Она снимает `.active` со всех `.view`, ставит его на `#view-<name>`, подсвечивает пункт `.nav-item`, закрывает меню, сохраняет состояние и перерисовывает целевой раздел.
+Переключение — `setView(viewName)` в `js/state.js`. Она снимает `.active` со всех `.view`, ставит его на `#view-<name>`, подсвечивает пункт `.nav-item`, сохраняет состояние и перерисовывает целевой раздел.
 
 Текущий раздел сохраняется в `state.currentView` и восстанавливается при загрузке.
+
+### Боковое меню
+
+Разделы живут в боковом меню `#sidebar` (`.nav-item` — кнопки), открывается/закрывается кнопкой «☰ Разделы» (`#navToggle`). Открытое состояние — класс `nav-open` на `body`, закрепление — `nav-pinned` и `state.navPinned`. Кнопка 📌 (`#btnPinSidebar`) переключает закрепление:
+
+- закреплено — меню не реагирует на клик вне/`Esc`/потерю фокуса;
+- откреплено — меню сворачивается при клике вне, `Esc` или уходе фокуса (`focusout`) из `#sidebar`;
+- на ширине ≤900px меню становится оверлеем (`position: fixed`, затемнение), закрепление игнорируется, выбор раздела сразу закрывает его.
+
+Логика — в `js/app.js` (`openNav`/`closeNav`/`setNavPinned`), стили — `layout.css` и `responsive.css`.
 
 ### Главный цикл рендера
 
@@ -79,7 +90,8 @@ state = {
   comboDescriptionSegments: { [comboKey]: segments }, // сегменты описаний (с @-ссылками)
   concepts:    [{ id, short, names, definition, definitionSegments, media }], // словарь
   nextConceptId: 1,                               // генерация id вида 'w<n>'
-  currentView: 'tree' | 'library' | 'combos' | 'generator' | 'dictionary'
+  currentView: 'tree' | 'library' | 'combos' | 'generator' | 'dictionary',
+  navPinned: true                                  // боковое меню закреплено
 }
 ```
 

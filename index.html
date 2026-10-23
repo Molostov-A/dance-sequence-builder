@@ -19,16 +19,7 @@
 <body>
 
 <header>
-  <div class="nav-dropdown">
-    <button class="nav-btn" id="navToggle">☰ Разделы</button>
-    <div class="nav-menu" id="navMenu">
-      <div class="nav-item active" data-view="tree">Дерево связок</div>
-      <div class="nav-item" data-view="library">Библиотека движений</div>
-      <div class="nav-item" data-view="combos">Комбинации</div>
-      <div class="nav-item" data-view="generator">Генератор</div>
-      <div class="nav-item" data-view="dictionary">Словарь</div>
-    </div>
-  </div>
+  <button class="nav-btn" id="navToggle" type="button" title="Открыть/закрыть меню разделов">☰ Разделы</button>
   <h1>💃 Связки</h1>
   <div class="spacer"></div>
   <button id="btnAddRoot">+ Связка</button>
@@ -37,6 +28,21 @@
   <button id="btnImport" class="danger">Импорт</button>
   <input type="file" id="importFile" accept=".json,application/json" class="hidden">
 </header>
+
+<div class="workspace">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <span class="sidebar-title">Разделы</span>
+    <button class="pin-btn" id="btnPinSidebar" type="button" title="Закрепить меню" aria-pressed="false">📌</button>
+  </div>
+  <nav class="nav-menu" id="navMenu">
+    <button class="nav-item active" type="button" data-view="tree">Дерево связок</button>
+    <button class="nav-item" type="button" data-view="library">Библиотека движений</button>
+    <button class="nav-item" type="button" data-view="combos">Комбинации</button>
+    <button class="nav-item" type="button" data-view="generator">Генератор</button>
+    <button class="nav-item" type="button" data-view="dictionary">Словарь</button>
+  </nav>
+</aside>
 
 <main>
   <section class="view active" id="view-tree">
@@ -104,6 +110,7 @@
     </div>
   </section>
 </main>
+</div>
 
 <div id="formLayer" class="hidden"></div>
 
