@@ -1,14 +1,14 @@
 function addRoot() { openForm({ parentId: null, isRoot: true, beat: 1 }); }
 function addChildNode(parentId, movementId, beat, length) {
   const id = state.nextNodeId++;
-  state.nodes[id] = { id, movementId, parentId, beat, length };
+  state.nodes[id] = { id, movementId, parentId, beat, length, preparation: null };
   state.nodeOrder.push(id);
   state.activePath = [...pathToNode(parentId), id];
   saveState(); render();
 }
 function addRootNode(movementId, length) {
   const id = state.nextNodeId++;
-  state.nodes[id] = { id, movementId, parentId: null, beat: 1, length };
+  state.nodes[id] = { id, movementId, parentId: null, beat: 1, length, preparation: null };
   state.nodeOrder.push(id);
   state.roots.push(id);
   state.activePath = [id];

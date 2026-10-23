@@ -38,6 +38,16 @@
   border-left: 3px solid #dfe4e9; border-radius: 4px;
   font-size: 12px; color: #555; white-space: pre-wrap; word-break: break-word;
 }
+
+.combo-prep-inline {
+  font-size: 11px;
+  color: #6b7785;
+}
+.combo-prep-inline-name {
+  font-size: 12px;
+  color: #2c3e50;
+}
+.combo-prep-inline-name .mention { font-size: 12px; }
 .combo-list .mov { color: #2c3e50; font-weight: 500; }
 .combo-list .beat { color: #27ae60; font-size: 12px; }
 .combo-list .arrow { color: #b0b8c1; margin: 0 4px; }

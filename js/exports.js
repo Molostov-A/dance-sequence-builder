@@ -57,7 +57,7 @@ function exportCombos() {
         description: getComboDescription(combo),
         steps: combo.map(n => {
           const mov = getMovement(n.movementId);
-          return {
+          const step = {
             movement: mov ? mov.name : '???',
             movementId: n.movementId,
             lead: mov ? (mov.lead || '') : '',
@@ -67,6 +67,16 @@ function exportCombos() {
             label: formatBeatShort(n.beat, n.length),
             eighth: eighthNumber(n.beat)
           };
+          if (n.preparation && n.preparation.movementId) {
+            const pm = getMovement(n.preparation.movementId);
+            step.preparation = {
+              movementId: pm ? pm.id : n.preparation.movementId,
+              movement: pm ? pm.name : null,
+              lead: pm ? pm.lead : '',
+              follow: pm ? pm.follow : ''
+            };
+          }
+          return step;
         })
       };
     })
@@ -100,11 +110,14 @@ function applyImportedJson(text) {
     if (!state.comboDescriptions || typeof state.comboDescriptions !== 'object') state.comboDescriptions = {};
     if (!state.comboDescriptionSegments || typeof state.comboDescriptionSegments !== 'object') state.comboDescriptionSegments = {};
     if (!state.treeViewMode) state.treeViewMode = 'path';
+    if (typeof state.navPinned !== 'boolean') state.navPinned = true;
+    normalizePreparations(state);
     pruneComboVideos();
-      pruneComboDescriptions();
-      pruneMentions();
-      ensureActivePathValid();
-      saveState(); render();
+    pruneComboDescriptions();
+    pruneMentions();
+    ensureActivePathValid();
+    saveState();
+    render();
     return true;
   } catch (err) { alert('Ошибка чтения JSON: ' + err.message); return false; }
 }

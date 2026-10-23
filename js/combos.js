@@ -63,6 +63,11 @@ function rebuildNodeVideoIndex() {
       if (seen.has(node.id)) return;
       seen.add(node.id);
       nodeVideoIndex[node.id] = (nodeVideoIndex[node.id] || 0) + videos.length;
+      if (node.preparation && node.preparation.movementId) {
+        if (!seen.has('p:' + node.id)) {
+          seen.add('p:' + node.id);
+        }
+      }
     });
   });
 }
@@ -89,6 +94,11 @@ function rebuildMovementVideoIndex() {
     combo.forEach(node => {
       if (!placesByMovement[node.movementId]) placesByMovement[node.movementId] = [];
       placesByMovement[node.movementId].push({ beat: node.beat, length: node.length });
+      if (node.preparation && node.preparation.movementId) {
+        const pmid = node.preparation.movementId;
+        if (!placesByMovement[pmid]) placesByMovement[pmid] = [];
+        placesByMovement[pmid].push({ beat: node.beat, length: node.length, prep: true });
+      }
     });
     videos.forEach(url => {
       Object.keys(placesByMovement).forEach(key => {
@@ -246,6 +256,19 @@ function renderCombos() {
         const sq = document.createElement('span');
         sq.className = 'square-mark'; sq.textContent = '✓';
         li.appendChild(sq);
+      }
+      if (node.preparation && node.preparation.movementId) {
+        const pm = getMovement(node.preparation.movementId);
+        if (pm) {
+          const prep = document.createElement('span');
+          prep.className = 'combo-prep-inline';
+          prep.textContent = ' +подготовка: ';
+          const pspan = document.createElement('span');
+          pspan.className = 'combo-prep-inline-name';
+          renderRichText(nameSegmentsOf(pm), pspan);
+          prep.appendChild(pspan);
+          li.appendChild(prep);
+        }
       }
     });
     if (descText) {

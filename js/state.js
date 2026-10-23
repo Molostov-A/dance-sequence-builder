@@ -22,6 +22,23 @@ function normalizeComboVideos(data) {
     else delete data.comboVideos[key];
   });
 }
+function normalizePreparations(data) {
+  if (!data.nodes || typeof data.nodes !== 'object') return;
+  Object.keys(data.nodes).forEach(id => {
+    const n = data.nodes[id];
+    if (!n || typeof n !== 'object') return;
+    if (n.preparation === undefined) {
+      n.preparation = null;
+      return;
+    }
+    if (n.preparation === null) return;
+    if (typeof n.preparation !== 'object' || typeof n.preparation.movementId !== 'string') {
+      n.preparation = null;
+      return;
+    }
+    n.preparation = { movementId: n.preparation.movementId };
+  });
+}
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
 }
@@ -38,6 +55,7 @@ function loadState() {
     if (!data.comboDescriptionSegments || typeof data.comboDescriptionSegments !== 'object') data.comboDescriptionSegments = {};
     if (!data.currentView) data.currentView = 'tree';
     if (typeof data.navPinned !== 'boolean') data.navPinned = true;
+    normalizePreparations(data);
     return data;
   } catch (e) { return null; }
 }

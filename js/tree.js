@@ -334,6 +334,47 @@ function renderCardTitle(node) {
   }
   return row;
 }
+function renderPreparationBlock(node, container) {
+  if (!node.preparation || !node.preparation.movementId) return;
+  const pm = getMovement(node.preparation.movementId);
+  if (!pm) return;
+  const block = document.createElement('div');
+  block.className = 'prep-block';
+  const label = document.createElement('div');
+  label.className = 'prep-label';
+  label.textContent = 'Подготовка';
+  const row = document.createElement('div');
+  row.className = 'prep-row';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'prep-name';
+  renderRichText(nameSegmentsOf(pm), nameEl);
+  const notes = movementNotes(pm);
+  nameEl.title = notes ? `${pm.name}\n\n${notes}` : pm.name;
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'icon-btn prep-edit';
+  editBtn.title = 'Редактировать подготовку';
+  editBtn.textContent = '✎';
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    openMovementModal({ movementId: pm.id });
+  };
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'icon-btn prep-remove';
+  removeBtn.title = 'Убрать подготовку';
+  removeBtn.textContent = '✕';
+  removeBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (!confirm('Убрать подготовку с этого блока?')) return;
+    node.preparation = null;
+    saveState();
+    render();
+  };
+  row.append(nameEl, editBtn, removeBtn);
+  block.append(label, row);
+  container.appendChild(block);
+}
 
 function renderSpineCard(c) {
   const node = c.node;
@@ -372,9 +413,11 @@ function renderSpineCard(c) {
   }
 
   el.append(titleRow, badge);
+  renderPreparationBlock(node, el);
 
   if (c.isActive) {
     const actions = document.createElement('div');
+    actions.className = 'card-actions';
     actions.className = 'card-actions';
 
     const replaceBtn = document.createElement('button');
@@ -653,9 +696,10 @@ function renderFullTreeNode(c) {
   }
 
   el.append(titleRow, badge);
+  renderPreparationBlock(node, el);
+  renderPreparationBlock(node, el);
 
-  const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
-  if (isActive) {
+  if (c.isActive) {
     const actions = document.createElement('div');
     actions.className = 'card-actions';
 
