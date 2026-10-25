@@ -17,6 +17,11 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+.mention-editor.auto-grow {
+  min-height: 38px;
+  height: auto;
+  overflow: hidden;
+}
 .movement-notes-input.mention-editor,
 .concept-definition-input.mention-editor { height: auto; }
 

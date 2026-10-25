@@ -79,6 +79,12 @@ function normalizeMentions(el) {
 function setMentionText(el, value) {
   if (Array.isArray(value)) writeSegments(el, value);
   else writeSegments(el, [{ text: value || '' }]);
+  if (el.classList && el.classList.contains('auto-grow')) autoGrowEditor(el);
+}
+
+function autoGrowEditor(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 function focusMentionEditor(el, selectAll) {
@@ -118,6 +124,7 @@ function makeMentionEditor(el, opts) {
 
   el.addEventListener('input', () => {
     normalizeMentions(el);
+    if (opts.autoGrow) autoGrowEditor(el);
     if (opts.onInput) opts.onInput();
   });
 
@@ -330,7 +337,10 @@ function initMentions() {
   document.querySelectorAll('.mention-editor').forEach(el => {
     if (el.dataset.mentionReady) return;
     el.dataset.mentionReady = '1';
-    makeMentionEditor(el, { multiline: el.classList.contains('multiline') });
+    makeMentionEditor(el, {
+      multiline: el.classList.contains('multiline') || el.classList.contains('auto-grow'),
+      autoGrow: el.classList.contains('auto-grow')
+    });
   });
   initMentionTooltip();
 }

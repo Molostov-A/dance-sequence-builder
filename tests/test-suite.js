@@ -160,6 +160,35 @@
       return legacy.nodes.a.preparation === null;
     });
 
+    // --- Модалка движения не закрывается по клику вне окна ---
+    openMovementModal({ movementId: 1 });
+    check('модалка движения открылась', function () {
+      return q('#movementModal').classList.contains('open');
+    });
+    var mvModal = q('#movementModal');
+    mvModal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    check('модалка движения не закрывается по клику на фон', function () {
+      return q('#movementModal').classList.contains('open');
+    });
+    closeMovementModal();
+
+    // --- Поле названия: многострочность и автоувеличение ---
+    openMovementModal({ movementId: 1 });
+    var nameInput = q('#movementNameInput');
+    check('поле названия многострочное (auto-grow)', function () {
+      return nameInput.classList.contains('auto-grow');
+    });
+    var initialHeight = nameInput.clientHeight;
+    setMentionText(nameInput, 'Строка один\nСтрока два\nСтрока три');
+    check('поле названия увеличивается при многострочном тексте', function () {
+      return nameInput.clientHeight > initialHeight;
+    });
+    check('перенос строки сохраняется в сегментах', function () {
+      var txt = mentionText(nameInput);
+      return txt.indexOf('\n') >= 0;
+    });
+    closeMovementModal();
+
     document.title = 'TESTRESULT=' + JSON.stringify(R);
   } catch (e) {
     document.title = 'TESTERROR=' + e.message + '|' + e.stack;

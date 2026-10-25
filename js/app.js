@@ -46,11 +46,7 @@ document.getElementById('btnSaveMovement').addEventListener('click', saveMovemen
 document.getElementById('btnCancelMovement').addEventListener('click', closeMovementModal);
 document.getElementById('movementNameInput').addEventListener('keydown', (e) => {
   if (e.isComposing) return;
-  if (e.key === 'Enter') { e.preventDefault(); saveMovementModal(); }
-  else if (e.key === 'Escape') { e.preventDefault(); closeMovementModal(); }
-});
-document.getElementById('movementModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeMovementModal();
+  if (e.key === 'Escape') { e.preventDefault(); closeMovementModal(); }
 });
 document.getElementById('btnSaveComboVideo').addEventListener('click', saveComboVideo);
 document.getElementById('btnAddComboVideo').addEventListener('click', addComboVideoRow);
