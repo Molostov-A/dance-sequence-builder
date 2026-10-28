@@ -219,3 +219,36 @@
   border: 1px solid #ccc; border-radius: 4px;
   font-family: inherit; font-size: 14px; line-height: 1.4;
 }
+/* Замена движения: список прокручивается внутри окна, само окно
+   не выходит за пределы экрана на любой ширине. */
+.replace-movement-modal {
+  width: 440px; max-height: 85vh; min-height: 0;
+}
+.replace-movement-search {
+  width: 100%; padding: 9px; border: 1px solid #ccc;
+  border-radius: 4px; font-size: 15px; margin-bottom: 8px;
+}
+.replace-movement-list {
+  flex: 1 1 auto; min-height: 60px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid #eef1f4; border-radius: 6px; padding: 6px;
+}
+.replace-movement-item {
+  display: flex; align-items: center; gap: 8px;
+  text-align: left; background: #fff;
+  border: 1px solid #e3e7ec; border-radius: 5px;
+  padding: 8px 10px; cursor: pointer; font-size: 13px;
+}
+.replace-movement-item:hover { background: #f0f5fb; border-color: #cfe0ee; }
+.replace-movement-item.current { background: #fff8f0; border-color: #f0c9a0; }
+.replace-movement-name {
+  flex: 1; min-width: 0; overflow-wrap: anywhere;
+}
+.replace-movement-current {
+  flex-shrink: 0; font-size: 11px; color: #e67e22;
+}
+.replace-movement-empty { font-size: 12px; color: #888; padding: 6px; }
+.replace-movement-new {
+  margin-top: 8px; align-self: flex-start;
+  max-width: 100%; overflow-wrap: anywhere; text-align: left;
+}

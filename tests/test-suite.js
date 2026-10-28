@@ -189,6 +189,73 @@
     });
     closeMovementModal();
 
+    // --- Подготовка с числовым id переживает загрузку ---
+    var withPrep = { nodes: { a: { movementId: 1, preparation: { movementId: 2 } } } };
+    normalizePreparations(withPrep);
+    check('нормализация сохраняет подготовку с числовым id', function () {
+      return withPrep.nodes.a.preparation && withPrep.nodes.a.preparation.movementId === 2;
+    });
+    saveState();
+    check('подготовка сохраняется после loadState', function () {
+      var loaded = loadState();
+      var n = loaded.nodes[childId];
+      return n.preparation && n.preparation.movementId === 2;
+    });
+
+    // --- Сворачивание продолжений ---
+    state.activePath = [rootId];
+    toggleCollapse(rootId);
+    check('свёрнутый узел скрывает продолжения', function () {
+      return isCollapsed(rootId) && qa('#nodesLayer .mini-card.child').length === 0;
+    });
+    check('кнопка свёрнутого узла показывает число скрытых', function () {
+      var t = q('.node-card.active .collapse-toggle');
+      return t && t.textContent === '+1';
+    });
+    setActiveNode(childId);
+    check('переход к скрытому узлу разворачивает предков', function () {
+      return !isCollapsed(rootId);
+    });
+
+    // --- Окно замены движения ---
+    replaceMovement(childId);
+    check('окно замены открывается со списком движений', function () {
+      return q('#replaceMovementModal').classList.contains('open') && qa('.replace-movement-item').length === 2;
+    });
+    q('#replaceMovementSearch').value = 'Новое';
+    renderReplaceMovementList();
+    check('без совпадений предлагается создать движение', function () {
+      return qa('.replace-movement-item').length === 0
+        && q('#btnReplaceWithNew').textContent.indexOf('Новое') >= 0;
+    });
+    closeReplaceMovementModal();
+
+    // --- Удаление движения чистит производные данные ---
+    var realConfirm = window.confirm;
+    window.confirm = function () { return true; };
+    addRootNode(1, 4);
+    var otherRoot = state.roots[state.roots.length - 1];
+    addMerge(childId, otherRoot);
+    var delCombo = collectCombos().find(function (c) { return c[0].id === rootId; });
+    var delKey = comboVideoKey(delCombo);
+    state.comboDescriptions[delKey] = 'описание';
+    state.nodes[otherRoot].preparation = { movementId: 2 };
+    state.nodes[childId].movementId = 2;
+    deleteMovement(2);
+    window.confirm = realConfirm;
+    check('удаление движения удаляет его узлы', function () {
+      return !state.nodes[childId] && !!state.nodes[rootId];
+    });
+    check('удаление движения чистит merges', function () {
+      return state.merges.every(function (m) { return state.nodes[m.from] && state.nodes[m.to]; });
+    });
+    check('удаление движения убирает подготовку', function () {
+      return state.nodes[otherRoot].preparation === null;
+    });
+    check('удаление движения чистит описания комбинаций', function () {
+      return !state.comboDescriptions[delKey];
+    });
+
     document.title = 'TESTRESULT=' + JSON.stringify(R);
   } catch (e) {
     document.title = 'TESTERROR=' + e.message + '|' + e.stack;

@@ -7,8 +7,15 @@ function initialState() {
     treeViewMode: 'path', merges: [], comboVideos: {},
     concepts: [], nextConceptId: 1,
     comboDescriptions: {}, comboDescriptionSegments: {},
-    currentView: 'tree', navPinned: true
+    currentView: 'tree', navPinned: true,
+    collapsedNodes: []
   };
+}
+function normalizeCollapsedNodes(data) {
+  const nodes = data.nodes || {};
+  data.collapsedNodes = Array.isArray(data.collapsedNodes)
+    ? data.collapsedNodes.filter(id => nodes[id])
+    : [];
 }
 function normalizeComboVideos(data) {
   if (!data.comboVideos || typeof data.comboVideos !== 'object') {
@@ -32,7 +39,10 @@ function normalizePreparations(data) {
       return;
     }
     if (n.preparation === null) return;
-    if (typeof n.preparation !== 'object' || typeof n.preparation.movementId !== 'string') {
+    // id движений — числа (nextMovId++); строки допускаем для старых/ручных файлов
+    const pmid = n.preparation && n.preparation.movementId;
+    if (typeof n.preparation !== 'object'
+      || !((typeof pmid === 'number' && pmid > 0) || (typeof pmid === 'string' && pmid))) {
       n.preparation = null;
       return;
     }
@@ -56,6 +66,7 @@ function loadState() {
     if (!data.currentView) data.currentView = 'tree';
     if (typeof data.navPinned !== 'boolean') data.navPinned = true;
     normalizePreparations(data);
+    normalizeCollapsedNodes(data);
     return data;
   } catch (e) { return null; }
 }

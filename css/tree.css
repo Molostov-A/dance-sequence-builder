@@ -251,3 +251,18 @@
 }
 .prep-edit:hover,
 .prep-remove:hover { opacity: 1; }
+/* Свернуть/развернуть продолжения узла — на правой кромке карточки */
+.node-card .collapse-toggle {
+  position: absolute; right: -11px; top: 50%;
+  transform: translateY(-50%);
+  min-width: 22px; height: 22px; padding: 0 5px;
+  border: 1px solid #3498db; border-radius: 11px;
+  background: #fff; color: #3498db;
+  font-size: 12px; line-height: 20px; font-weight: 600;
+  cursor: pointer; z-index: 3;
+}
+.node-card .collapse-toggle:hover { background: #eaf5ff; }
+.node-card .collapse-toggle.collapsed {
+  background: #3498db; color: #fff;
+}
+.node-card .collapse-toggle.collapsed:hover { background: #2980b9; }

@@ -112,6 +112,7 @@ function applyImportedJson(text) {
     if (!state.treeViewMode) state.treeViewMode = 'path';
     if (typeof state.navPinned !== 'boolean') state.navPinned = true;
     normalizePreparations(state);
+    normalizeCollapsedNodes(state);
     pruneComboVideos();
     pruneComboDescriptions();
     pruneMentions();

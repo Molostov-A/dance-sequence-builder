@@ -2,7 +2,7 @@
 
 ## Что это
 
-Статическое SPA для построения библиотеки танцевальных связок (бачата). Без сборщика, без зависимостей, без тестов. Всё состояние — в `localStorage` браузера. Ветки: `master`, remote `origin` → `https://github.com/Molostov-A/dance-sequence-builder.git`.
+Статическое SPA для построения библиотеки танцевальных связок (бачата). Без сборщика и без зависимостей. Всё состояние — в `localStorage` браузера. Ветки: `master`, remote `origin` → `https://github.com/Molostov-A/dance-sequence-builder.git`.
 
 ## Запуск и проверка
 
@@ -15,6 +15,8 @@
 - открытие формы, панорамирование доски, merge ответвлений, генератор, экспорт/импорт.
 
 Синтаксическую проверку JS можно делать так: `node --check <file>` для каждого файла в `js/`.
+
+Автотесты: `node tests/run-tests.js` — копирует проект во временную папку, встраивает `tests/test-suite.js` в `index.html` и гоняет его в headless Chrome (путь можно задать через `CHROME_PATH`). Новые сценарии добавлять в `test-suite.js`; `state` там задаётся вручную, поэтому код должен переживать отсутствие новых полей.
 
 ## Архитектура
 
@@ -78,7 +80,7 @@ setView(state.currentView);
 state = {
   movements:   [{ id, name, lead, follow, nameSegments, leadSegments, followSegments }], // библиотека движений
   roots:       [nodeId, ...],                     // корневые узлы
-  nodes:       { [id]: { id, movementId, parentId, beat, length } },
+  nodes:       { [id]: { id, movementId, parentId, beat, length, preparation } }, // preparation: null | { movementId } — подготовка из библиотеки
   nodeOrder:   [nodeId, ...],                     // порядок вставки, стабильная итерация
   nextNodeId:  1,
   nextMovId:   1,
@@ -91,7 +93,8 @@ state = {
   concepts:    [{ id, short, names, definition, definitionSegments, media }], // словарь
   nextConceptId: 1,                               // генерация id вида 'w<n>'
   currentView: 'tree' | 'library' | 'combos' | 'generator' | 'dictionary',
-  navPinned: true                                  // боковое меню закреплено
+  navPinned: true,                                 // боковое меню закреплено
+  collapsedNodes: [nodeId, ...]                    // узлы со свёрнутыми продолжениями
 }
 ```
 
@@ -156,6 +159,18 @@ state = {
 Константы геометрии — в `js/constants.js` (`CARD_W`, `CARD_H`, `MINI_W`, `MINI_H`, `H_GAP`, `H_GAP_MINI`, `CHILD_H_GAP`, `BUS_OFFSET`, `PAD`, `STACK_OFFSET`). Правки разметки почти всегда означают правку констант, а не хардкод чисел в разметке.
 
 `renderTree()` сохраняет и восстанавливает `scrollLeft`/`scrollTop` — панорамирование не должно сбрасываться при перерисовке.
+
+### Сворачивание продолжений
+
+На правой кромке каждой крупной карточки с детьми — кнопка `−` / `+N` (`renderCollapseToggle()` в `tree.js`), N — число скрытых потомков. Свёрнутые id хранятся в `state.collapsedNodes`; раскладка берёт детей через `getVisibleChildren()` (`nodes.js`), поэтому свёрнутый узел раскладывается как лист в обоих режимах. На данные, комбинации и генератор не влияет.
+
+- `toggleCollapse()` при сворачивании предка активного узла переносит активность на свёрнутый узел.
+- `setActiveNode()` разворачивает предков выбранного узла (переход из крошек/стартов).
+- При удалении узлов чистить и `collapsedNodes`; при загрузке/импорте — `normalizeCollapsedNodes()`.
+
+## Замена движения
+
+Кнопка `⇄` на активной карточке открывает `#replaceMovementModal` (`replaceMovement()` в `nodes.js`): поиск по библиотеке, прокручиваемый список (текущее помечено), кнопка «+ Новое движение» / «+ Создать «…»». Создание идёт через `openMovementModal({ text, onSaved })` — название, лид, фоллоу с @-ссылками. Enter в поиске выбирает точное или единственное совпадение, а при отсутствии совпадений открывает создание.
 
 ## Форма добавления
 
