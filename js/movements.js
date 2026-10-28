@@ -124,8 +124,15 @@ function saveMovementModal() {
 }
 function deleteMovement(id) {
   const usage = Object.values(state.nodes).filter(n => n.movementId === id).length;
+  const prepUsage = Object.values(state.nodes)
+    .filter(n => n.movementId !== id && n.preparation && n.preparation.movementId === id).length;
+  if (usage > 0 || prepUsage > 0) {
+    const parts = [];
+    if (usage > 0) parts.push(`в ${usage} узл(ах) — они будут удалены вместе с продолжениями`);
+    if (prepUsage > 0) parts.push(`как подготовка в ${prepUsage} узл(ах) — подготовка будет убрана`);
+    if (!confirm(`Движение используется ${parts.join('; ')}. Удалить?`)) return;
+  }
   if (usage > 0) {
-    if (!confirm(`Движение используется в ${usage} узл(ах). Удалить и убрать из дерева?`)) return;
     const toDelete = new Set();
     const collect = (nid) => {
       toDelete.add(nid);
@@ -138,9 +145,19 @@ function deleteMovement(id) {
       delete state.nodes[nid];
     });
     state.activePath = state.activePath.filter(p => !toDelete.has(p));
+    state.collapsedNodes = (state.collapsedNodes || []).filter(c => !toDelete.has(c));
+    state.merges = state.merges.filter(m => !toDelete.has(m.from) && !toDelete.has(m.to));
+  }
+  // Подготовка ссылается на движение, а не на узел — убираем её у выживших узлов
+  Object.values(state.nodes).forEach(n => {
+    if (n.preparation && n.preparation.movementId === id) n.preparation = null;
+  });
+  if (openFormState && openFormState.draftPreparation && openFormState.draftPreparation.movementId === id) {
+    openFormState.draftPreparation = null;
   }
   state.movements = state.movements.filter(m => m.id !== id);
   pruneComboVideos();
+  pruneComboDescriptions();
   ensureActivePathValid();
   saveState(); render();
 }

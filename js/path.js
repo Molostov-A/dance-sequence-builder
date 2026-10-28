@@ -30,6 +30,10 @@ function ensureActivePathValid() {
 function setActiveNode(nodeId) {
   if (!state.nodes[nodeId]) return;
   state.activePath = pathToNode(nodeId);
+  // Переход к узлу внутри свёрнутой ветки (крошки, старты) разворачивает
+  // его предков, иначе активный узел не будет виден в дереве.
+  const ancestors = state.activePath.slice(0, -1);
+  state.collapsedNodes = (state.collapsedNodes || []).filter(c => !ancestors.includes(c));
   saveState(); render();
 }
 function getActiveRootId() {

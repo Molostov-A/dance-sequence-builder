@@ -334,6 +334,30 @@ function renderCardTitle(node) {
   }
   return row;
 }
+// Кнопка «свернуть/развернуть продолжения» сидит на правой кромке карточки —
+// ровно там, откуда выходят линии к детям, поэтому читается как «узел ветки».
+// У свёрнутого узла показывает, сколько потомков скрыто.
+function renderCollapseToggle(node, container) {
+  if (getChildren(node.id).length === 0) return;
+  const collapsed = isCollapsed(node.id);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'collapse-toggle' + (collapsed ? ' collapsed' : '');
+  if (collapsed) {
+    const hidden = countAllDescendants(node.id);
+    btn.textContent = '+' + hidden;
+    btn.title = `Развернуть продолжения (${hidden})`;
+  } else {
+    btn.textContent = '−';
+    btn.title = 'Свернуть все продолжения';
+  }
+  btn.setAttribute('aria-label', btn.title);
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    toggleCollapse(node.id);
+  };
+  container.appendChild(btn);
+}
 function renderPreparationBlock(node, container) {
   if (!node.preparation || !node.preparation.movementId) return;
   const pm = getMovement(node.preparation.movementId);
@@ -414,6 +438,7 @@ function renderSpineCard(c) {
 
   el.append(titleRow, badge);
   renderPreparationBlock(node, el);
+  renderCollapseToggle(node, el);
 
   if (c.isActive) {
     const actions = document.createElement('div');
@@ -598,7 +623,7 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
 
   // Рисуем линии от родителя к каждому ребёнку
   cards.forEach(c => {
-    const children = getChildrenSorted(c.node.id);
+    const children = getVisibleChildren(c.node.id);
     if (children.length === 0) return;
 
     const parentRight = c.x + c.w;
@@ -702,6 +727,7 @@ function renderFullTreeNode(c) {
 
   el.append(titleRow, badge);
   renderPreparationBlock(node, el);
+  renderCollapseToggle(node, el);
 
   const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
   if (isActive) {

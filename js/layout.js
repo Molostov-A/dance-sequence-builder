@@ -86,8 +86,8 @@ function computeLayout(overrides) {
   cards.push(activeCardPos);
   minis.push(...stackMinis);
 
-  // ===== 3) ПРОДОЛЖЕНИЯ активного =====
-  const children = getChildrenSorted(activeId);
+  // ===== 3) ПРОДОЛЖЕНИЯ активного (если он не свёрнут) =====
+  const children = getVisibleChildren(activeId);
   const activeRight = activeCardPos.x + activeCardPos.w;
   const childX = activeRight + CHILD_H_GAP;
   let childTopY = activeCardPos.y;
@@ -170,7 +170,8 @@ function computeFullTreeLayout(overrides) {
     const node = state.nodes[nodeId];
     if (!node) return { elements: [], width: 0, height: 0 };
 
-    const children = getChildrenSorted(nodeId);
+    // Свёрнутый узел раскладывается как лист: поддерево не занимает места.
+    const children = getVisibleChildren(nodeId);
     const h = nodeH(nodeId);
     const w = isOnPath(nodeId) ? CARD_W : MINI_W;
 

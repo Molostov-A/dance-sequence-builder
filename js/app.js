@@ -48,6 +48,13 @@ document.getElementById('movementNameInput').addEventListener('keydown', (e) => 
   if (e.isComposing) return;
   if (e.key === 'Escape') { e.preventDefault(); closeMovementModal(); }
 });
+document.getElementById('replaceMovementSearch').addEventListener('input', renderReplaceMovementList);
+document.getElementById('replaceMovementModal').addEventListener('keydown', onReplaceMovementKeydown);
+document.getElementById('btnReplaceWithNew').addEventListener('click', replaceWithNewMovement);
+document.getElementById('btnCancelReplaceMovement').addEventListener('click', closeReplaceMovementModal);
+document.getElementById('replaceMovementModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeReplaceMovementModal();
+});
 document.getElementById('btnSaveComboVideo').addEventListener('click', saveComboVideo);
 document.getElementById('btnAddComboVideo').addEventListener('click', addComboVideoRow);
 document.getElementById('btnOpenComboVideoLink').addEventListener('click', openComboVideoLink);
