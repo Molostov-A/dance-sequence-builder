@@ -1,6 +1,11 @@
 const STORAGE_KEY = 'dance-combos-v10';
 const PANEL_STATE_KEY = 'dance-panels-v10';
 const APP_NAME = 'dance_combos';
+/* Версия файлов приложения. Должна совпадать с <meta name="app-version"> и
+   с ?v=… у всех css/js в index.html (проверяет tests/run-tests.js). Меняется
+   при каждой правке js/css: иначе браузер (GitHub Pages кэширует на 10 минут)
+   может взять новую страницу со старыми скриптами. */
+const APP_VERSION = '2026-11-10.2';
 
 /* Метрики */
 const CARD_W = 200;

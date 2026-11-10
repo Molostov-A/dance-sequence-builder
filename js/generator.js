@@ -4,14 +4,18 @@ let genSelectedIdx = -1;
 
 /* ===== Фильтры сгенерированных связок =====
    Как и результаты генерации, живут только в памяти модуля.
+   Оба фильтра оставляют ЛУЧШИЕ связки, а не «все, где есть хоть что-то»:
+   иначе почти всегда проходил весь список и галочка ничего не меняла.
    diverse — «максимально разнообразные»: доля разных движений в связке
-     (unique / шагов) равна наибольшей среди всех сгенерированных; обычно
-     это связки без повторов, а если таких нет — с наименьшим числом повторов.
+     (unique / шагов) равна наибольшей среди сгенерированных.
    novel — «новые сочетания»: генератор собирает связки из уже существующих
      переходов «движение → движение», поэтому новизну считаем по цепочкам из
      трёх движений подряд, которых нет ни в одной готовой комбинации.
-   При включённом фильтре список сортируется: больше новых цепочек, затем
-   больше разнообразие. Номер #N остаётся номером в полном списке. */
+     Остаются связки с наибольшей ДОЛЕЙ таких цепочек (novelty).
+   Сначала применяется разнообразие, затем новизна — к оставшимся.
+   С включённым фильтром список сортируется по новизне, затем по
+   разнообразию. Номер #N остаётся номером в полном списке.
+   genFilterNote — пояснение для строки над списком (почему ничего не убрано). */
 let genFilters = { diverse: false, novel: false };
 
 function movementTriples(movementIds) {
@@ -35,20 +39,46 @@ function genSequenceStats(seq, existingTriples) {
   const unique = new Set(ids).size;
   const triples = Array.from(new Set(movementTriples(ids)));
   const newTriples = triples.filter(t => !existingTriples.has(t)).length;
-  return { steps: ids.length, unique, ratio: ids.length ? unique / ids.length : 0, triples: triples.length, newTriples };
+  return {
+    steps: ids.length, unique, ratio: ids.length ? unique / ids.length : 0,
+    triples: triples.length, newTriples,
+    novelty: triples.length ? newTriples / triples.length : 0
+  };
 }
+
+let genFilterNote = '';
 
 // Видимый список: [{ seq, idx, stats }] с учётом фильтров и сортировки
 function genVisibleSequences() {
   const existingTriples = existingMovementTriples();
   let list = genSequences.map((seq, idx) => ({ seq, idx, stats: genSequenceStats(seq, existingTriples) }));
+  const notes = [];
   if (genFilters.diverse && list.length) {
     const best = Math.max(...list.map(e => e.stats.ratio));
+    const before = list.length;
     list = list.filter(e => e.stats.ratio === best);
+    const s = list[0].stats;
+    notes.push(list.length === before
+      ? `все одинаково разнообразны (${s.unique}/${s.steps})`
+      : `самые разнообразные: ${s.unique} разных из ${s.steps}`);
   }
-  if (genFilters.novel) list = list.filter(e => e.stats.newTriples > 0);
+  if (genFilters.novel && list.length) {
+    const best = Math.max(...list.map(e => e.stats.novelty));
+    const before = list.length;
+    if (best === 0) {
+      list = [];
+      notes.push('новых сочетаний нет ни в одной связке');
+    } else {
+      list = list.filter(e => e.stats.novelty === best);
+      const pct = Math.round(best * 100);
+      notes.push(list.length === before
+        ? `у всех одинаковая новизна (${pct}% новых сочетаний)`
+        : `самые новые: ${pct}% сочетаний не встречается в готовых комбинациях`);
+    }
+  }
+  genFilterNote = notes.join('; ');
   if (genFilters.diverse || genFilters.novel) {
-    list.sort((a, b) => (b.stats.newTriples - a.stats.newTriples)
+    list.sort((a, b) => (b.stats.novelty - a.stats.novelty) || (b.stats.newTriples - a.stats.newTriples)
       || (b.stats.ratio - a.stats.ratio) || (a.idx - b.idx));
   }
   return list;
@@ -210,7 +240,7 @@ function renderGenTree() {
     genSequences.length ? '(' + genSequences.length + ')' : '';
 
   if (genSequences.length === 0) {
-    container.innerHTML = '<div class="gen-tree-empty">Нажмите «Сгенерировать» для создания связок.</div>';
+    container.innerHTML = '<div class="gen-tree-empty">Нажмите «Сгенерировать» для создания связок — фильтры применяются к результатам генерации.</div>';
     return;
   }
 
@@ -218,7 +248,7 @@ function renderGenTree() {
   const summary = document.createElement('div');
   summary.className = 'gen-filter-summary';
   summary.textContent = (genFilters.diverse || genFilters.novel)
-    ? `Показано ${visible.length} из ${genSequences.length}`
+    ? `Показано ${visible.length} из ${genSequences.length}` + (genFilterNote ? ` — ${genFilterNote}` : '')
     : `Всего ${genSequences.length}`;
   container.appendChild(summary);
   if (visible.length === 0) {
@@ -250,7 +280,7 @@ function renderGenTree() {
     diversity.title = 'Разных движений / всего шагов в связке';
     const novelty = document.createElement('span');
     novelty.className = 'gen-badge' + (stats.newTriples ? ' good' : '');
-    novelty.textContent = `новых сочетаний ${stats.newTriples}`;
+    novelty.textContent = `новых сочетаний ${stats.newTriples} из ${stats.triples}`;
     novelty.title = 'Цепочек из трёх движений подряд, которых нет в готовых комбинациях';
     badges.append(diversity, novelty);
     row.appendChild(badges);

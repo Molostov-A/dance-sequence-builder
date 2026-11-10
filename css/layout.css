@@ -76,3 +76,9 @@ body:not(.nav-open) .sidebar { display: none; }
 .nav-item:hover { background: #f0f5fb; }
 .nav-item.active { background: #3498db; color: #fff; font-weight: 500; }
 .nav-item:focus-visible { outline: 2px solid #3498db; outline-offset: -2px; }
+/* Предупреждение о старых файлах из кэша (checkAppVersion в app.js) */
+.stale-banner {
+  background: #fff3cd; color: #7a5b00; border-bottom: 1px solid #f0d58a;
+  padding: 6px 12px; font-size: 13px; text-align: center;
+}
+.stale-banner.hidden { display: none; }

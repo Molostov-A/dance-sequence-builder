@@ -35,6 +35,21 @@ function copyDir(src, dest) {
   }
 }
 
+// Версия файлов: meta app-version, APP_VERSION и все ?v=… у css/js совпадают
+{
+  const html = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
+  const consts = fs.readFileSync(path.join(projectRoot, 'js', 'constants.js'), 'utf8');
+  const meta = (html.match(/<meta name="app-version" content="([^"]+)"/) || [])[1];
+  const jsVersion = (consts.match(/const APP_VERSION = '([^']+)'/) || [])[1];
+  const refs = html.match(/(?:href|src)="(?:css|js)\/[^"]+"/g) || [];
+  const bad = refs.filter(r => !r.endsWith(`?v=${meta}"`));
+  if (!meta || meta !== jsVersion || bad.length) {
+    console.error(`Версии не совпадают: meta=${meta}, APP_VERSION=${jsVersion}` +
+      (bad.length ? `, без нужного ?v=: ${bad.join(', ')}` : ''));
+    process.exit(1);
+  }
+}
+
 copyDir(path.join(projectRoot, 'css'), path.join(tmpDir, 'css'));
 copyDir(path.join(projectRoot, 'js'), path.join(tmpDir, 'js'));
 fs.copyFileSync(path.join(projectRoot, 'index.html'), path.join(tmpDir, 'index.html'));

@@ -627,17 +627,38 @@
     });
     setGenFilter('diverse', true);
     check('«Максимально разнообразные» оставляет связки без повторов', function () {
-      return genVisibleSequences().map(function (e) { return e.idx; }).join() === '2,1,3';
+      // все три без повторов; порядок — по новизне (у всех 100%), затем по числу новых цепочек
+      return genVisibleSequences().map(function (e) { return e.idx; }).join() === '2,1,3'
+        && q('.gen-filter-summary').textContent.indexOf('самые разнообразные') >= 0;
     });
     setGenFilter('diverse', false);
+    // Связка 1 повторяет готовую цепочку — её новизна ниже
+    var exT = existingMovementTriples();
+    genSequences.push(mk([907, 908, 909, 907]));
+    var sharedTriple = Array.from(exT)[0];
+    if (sharedTriple) {
+      var ids = sharedTriple.split('>').map(Number);
+      genSequences.push(mk(ids.concat([910])));
+    }
     setGenFilter('novel', true);
-    check('«Новые сочетания» убирает связки без новых цепочек и сортирует по новизне', function () {
-      var v = genVisibleSequences().map(function (e) { return e.idx; });
-      // при равной новизне выше более разнообразная
-      return v.join() === '2,1,0' && q('.gen-filter-summary').textContent.indexOf('3 из 4') >= 0;
+    check('«Новые сочетания» оставляет связки с наибольшей долей новых цепочек', function () {
+      var v = genVisibleSequences();
+      var all = genSequences.map(function (s) { return genSequenceStats(s, exT).novelty; });
+      var best = Math.max.apply(null, all);
+      return v.length > 0 && v.every(function (e) { return e.stats.novelty === best; })
+        && v.length < genSequences.length
+        && q('.gen-filter-summary').textContent.indexOf('из ' + genSequences.length) >= 0;
     });
     check('номер #N остаётся номером в полном списке', function () {
-      return q('#genTreeContainer .gen-seq .gen-seq-idx').textContent === '#3';
+      var first = genVisibleSequences()[0];
+      return q('#genTreeContainer .gen-seq .gen-seq-idx').textContent === '#' + (first.idx + 1);
+    });
+    genSequences = [mk([905, 906]), mk([905, 906, 905])];
+    genSequences[1] = mk([905, 906]);
+    renderGenerator();
+    check('если новых сочетаний нет ни у одной связки — пустой список с пояснением', function () {
+      return genVisibleSequences().length === 0
+        && q('.gen-filter-summary').textContent.indexOf('новых сочетаний нет') >= 0;
     });
     genFilters = { diverse: false, novel: false };
     genSequences = [];

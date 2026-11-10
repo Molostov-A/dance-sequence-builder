@@ -238,6 +238,13 @@ if (navIsPinned() && !isNarrowScreen()) openNav();
 ensureActivePathValid();
 document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
 document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
+// Страница и скрипты из разных версий (старые файлы из кэша) — предупредить
+function checkAppVersion() {
+  const meta = document.querySelector('meta[name="app-version"]');
+  const pageVersion = meta ? meta.getAttribute('content') : '';
+  document.getElementById('staleBanner').classList.toggle('hidden', pageVersion === APP_VERSION);
+}
+checkAppVersion();
 initMentions();
 initPrepTooltip();
 initLinkControls();
