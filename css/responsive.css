@@ -29,4 +29,7 @@
   header h1 { font-size: 12px; }
   header button { padding: 6px 7px; font-size: 11px; }
   .icon-btn { min-width: 34px; padding: 6px 8px; }
+  /* Глубокая вложенность папок не должна съедать ширину телефона */
+  .combo-folder-body { padding-left: 8px; }
+  .combo-folder-actions .icon-btn { min-width: 26px; padding: 3px 4px; }
 }

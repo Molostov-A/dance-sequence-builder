@@ -150,6 +150,8 @@ function pruneComboDescriptions() {
   };
   pruneMap(state.comboDescriptions);
   pruneMap(state.comboDescriptionSegments);
+  // Папки привязаны к тому же ключу комбинации, что и описание
+  pruneMap(state.comboFolderLinks);
 }
 function parseComboVideoUrl(raw) {
   let value = (raw || '').trim();
@@ -251,88 +253,113 @@ function renderCombos() {
   }
   if (comboFocusNodeId !== null && !state.nodes[comboFocusNodeId]) comboFocusNodeId = null;
   const focusId = comboFocusNodeId;
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'combo-toolbar';
+  const addFolderBtn = document.createElement('button');
+  addFolderBtn.type = 'button';
+  addFolderBtn.className = 'combo-add-folder';
+  addFolderBtn.textContent = '+ Папка';
+  addFolderBtn.title = 'Новая папка верхнего уровня';
+  addFolderBtn.onclick = () => addComboFolder(null);
+  toolbar.appendChild(addFolderBtn);
+  container.appendChild(toolbar);
+
   if (focusId !== null) {
     const shown = combos.filter(c => c.some(n => n.id === focusId)).length;
     renderComboFocusBar(container, shown, combos.length);
   }
-  const ul = document.createElement('ul');
-  ul.className = 'combo-list';
-  combos.forEach((combo, idx) => {
-    if (focusId !== null && !combo.some(n => n.id === focusId)) return;
-    const li = document.createElement('li');
-    const totalBeats = combo.reduce((s, n) => s + n.length, 0);
-    const idxSpan = document.createElement('span');
-    idxSpan.className = 'combo-idx';
-    idxSpan.textContent = `#${idx + 1} (${comboSizeLabel(totalBeats)})`;
+  const entries = combos
+    .map((combo, idx) => ({ combo, idx, key: comboVideoKey(combo) }))
+    .filter(e => focusId === null || e.combo.some(n => n.id === focusId));
+  renderComboFolderTree(container, entries, e => renderComboItem(e.combo, e.idx, focusId), focusId !== null);
+}
 
-    const head = document.createElement('div');
-    head.className = 'combo-head';
-    const videos = getComboVideos(combo);
-    const videoBtn = document.createElement('button');
-    videoBtn.type = 'button';
-    videoBtn.className = 'combo-video-btn' + (videos.length ? ' has-video' : '');
-    videoBtn.textContent = videos.length ? (videos.length > 1 ? `▶ Видео (${videos.length})` : '▶ Видео') : '+ Видео';
-    videoBtn.title = videos.length ? 'Открыть видео связки' : 'Прикрепить видео к связке';
-    videoBtn.onclick = (e) => {
-      e.stopPropagation();
-      openComboVideoModal(combo, idx + 1);
-    };
-    const descText = getComboDescription(combo);
-    const descBtn = document.createElement('button');
-    descBtn.type = 'button';
-    descBtn.className = 'combo-desc-btn' + (descText ? ' has-desc' : '');
-    descBtn.textContent = descText ? '✎ Описание' : '+ Описание';
-    descBtn.title = descText ? 'Редактировать описание связки' : 'Добавить описание связки';
-    descBtn.onclick = (e) => {
-      e.stopPropagation();
-      openComboDescriptionModal(combo, idx + 1);
-    };
-    const actions = document.createElement('div');
-    actions.className = 'combo-head-actions';
-    actions.append(videoBtn, descBtn);
-    head.append(idxSpan, actions);
-    li.appendChild(head);
-    li.appendChild(document.createElement('br'));
-    combo.forEach((node, i) => {
-      if (i > 0) {
-        const arrow = document.createElement('span');
-        arrow.className = 'arrow'; arrow.textContent = '→';
-        li.appendChild(arrow);
-        const prep = comboStepPrep(combo, i);
-        if (prep) {
-          const prepSpan = document.createElement('span');
-          prepSpan.className = 'combo-prep';
-          prepSpan.title = movementNotes(prep) || 'Преп';
-          renderRichText(nameSegmentsOf(prep), prepSpan);
-          const arrow2 = document.createElement('span');
-          arrow2.className = 'arrow'; arrow2.textContent = '→';
-          li.append(prepSpan, arrow2);
-        }
+function renderComboItem(combo, idx, focusId) {
+  const li = document.createElement('li');
+  const totalBeats = combo.reduce((s, n) => s + n.length, 0);
+  const idxSpan = document.createElement('span');
+  idxSpan.className = 'combo-idx';
+  idxSpan.textContent = `#${idx + 1} (${comboSizeLabel(totalBeats)})`;
+
+  const head = document.createElement('div');
+  head.className = 'combo-head';
+  const videos = getComboVideos(combo);
+  const videoBtn = document.createElement('button');
+  videoBtn.type = 'button';
+  videoBtn.className = 'combo-video-btn' + (videos.length ? ' has-video' : '');
+  videoBtn.textContent = videos.length ? (videos.length > 1 ? `▶ Видео (${videos.length})` : '▶ Видео') : '+ Видео';
+  videoBtn.title = videos.length ? 'Открыть видео связки' : 'Прикрепить видео к связке';
+  videoBtn.onclick = (e) => {
+    e.stopPropagation();
+    openComboVideoModal(combo, idx + 1);
+  };
+  const descText = getComboDescription(combo);
+  const descBtn = document.createElement('button');
+  descBtn.type = 'button';
+  descBtn.className = 'combo-desc-btn' + (descText ? ' has-desc' : '');
+  descBtn.textContent = descText ? '✎ Описание' : '+ Описание';
+  descBtn.title = descText ? 'Редактировать описание связки' : 'Добавить описание связки';
+  descBtn.onclick = (e) => {
+    e.stopPropagation();
+    openComboDescriptionModal(combo, idx + 1);
+  };
+  const folderCount = comboFolderIdsByKey(comboVideoKey(combo)).length;
+  const folderBtn = document.createElement('button');
+  folderBtn.type = 'button';
+  folderBtn.className = 'combo-folder-btn' + (folderCount ? ' has-folder' : '');
+  folderBtn.textContent = folderCount ? `📁 ${folderCount}` : '📁 В папку';
+  folderBtn.title = folderCount
+    ? 'Папки: ' + comboFolderIdsByKey(comboVideoKey(combo)).map(comboFolderPath).join(', ')
+    : 'Положить связку в папку';
+  folderBtn.onclick = (e) => {
+    e.stopPropagation();
+    openComboFoldersModal(combo, idx + 1);
+  };
+  const actions = document.createElement('div');
+  actions.className = 'combo-head-actions';
+  actions.append(folderBtn, videoBtn, descBtn);
+  head.append(idxSpan, actions);
+  li.appendChild(head);
+  li.appendChild(document.createElement('br'));
+  combo.forEach((node, i) => {
+    if (i > 0) {
+      const arrow = document.createElement('span');
+      arrow.className = 'arrow'; arrow.textContent = '→';
+      li.appendChild(arrow);
+      const prep = comboStepPrep(combo, i);
+      if (prep) {
+        const prepSpan = document.createElement('span');
+        prepSpan.className = 'combo-prep';
+        prepSpan.title = movementNotes(prep) || 'Преп';
+        renderRichText(nameSegmentsOf(prep), prepSpan);
+        const arrow2 = document.createElement('span');
+        arrow2.className = 'arrow'; arrow2.textContent = '→';
+        li.append(prepSpan, arrow2);
       }
-      const mov = getMovement(node.movementId);
-      const movSpan = document.createElement('span');
-      movSpan.className = 'mov';
-      if (node.id === focusId) movSpan.classList.add('focus');
-      renderRichText(nameSegmentsOf(mov), movSpan);
-      const beatSpan = document.createElement('span');
-      beatSpan.className = 'beat';
-      beatSpan.textContent = ` (${formatBeatNode(node.beat, node.length)})`;
-      li.append(movSpan, beatSpan);
-      if (isSquareEnd(node.beat, node.length)) {
-        const sq = document.createElement('span');
-        sq.className = 'square-mark'; sq.textContent = '✓';
-        li.appendChild(sq);
-      }
-    });
-    if (descText) {
-      const desc = document.createElement('div');
-      desc.className = 'combo-desc';
-      renderRichText(getComboDescriptionSegments(combo) || [{ text: descText }], desc);
-      li.appendChild(desc);
     }
-    ul.appendChild(li);
+    const mov = getMovement(node.movementId);
+    const movSpan = document.createElement('span');
+    movSpan.className = 'mov';
+    if (node.id === focusId) movSpan.classList.add('focus');
+    renderRichText(nameSegmentsOf(mov), movSpan);
+    const beatSpan = document.createElement('span');
+    beatSpan.className = 'beat';
+    beatSpan.textContent = ` (${formatBeatNode(node.beat, node.length)})`;
+    li.append(movSpan, beatSpan);
+    if (isSquareEnd(node.beat, node.length)) {
+      const sq = document.createElement('span');
+      sq.className = 'square-mark'; sq.textContent = '✓';
+      li.appendChild(sq);
+    }
   });
-  container.appendChild(ul);
+  if (descText) {
+    const desc = document.createElement('div');
+    desc.className = 'combo-desc';
+    renderRichText(getComboDescriptionSegments(combo) || [{ text: descText }], desc);
+    li.appendChild(desc);
+  }
+  return li;
 }
 let comboVideoModalState = null;
 let comboVideoFocus = null;

@@ -16,7 +16,30 @@
       центрируется по вертикали на своей группе. На хребте преп встаёт
       в промежуток между двумя крупными карточками, который тоже
       расширяется на PREP_COL.
+      Свёрнутый преп (isPrepLinkCollapsed) — круглая метка PREP_MARK; ей
+      хватает промежутка PREP_MARK_COL. Блок/метка лежит поверх линии, но
+      колонка детей всегда отодвинута ровно настолько, чтобы он не наезжал
+      на карточки. У каждого блока есть subX — x короткой шины группы.
+   6) Ручные закрепления (state.treePins, только полное дерево) применяются
+      после автоматической раскладки — см. applyTreePins.
    ========================================================= */
+
+function prepChipGeometry(parentId, prepId) {
+  const collapsed = isPrepLinkCollapsed(parentId, prepId);
+  return collapsed
+    ? { collapsed, w: PREP_MARK, h: PREP_MARK, gap: PREP_MARK_GAP, col: PREP_MARK_COL }
+    : { collapsed, w: PREP_W, h: PREP_H, gap: PREP_GAP, col: PREP_COL };
+}
+
+// На сколько отодвинуть колонку детей: под развёрнутый блок — PREP_COL,
+// если все препы колонки свёрнуты — только под метку.
+function prepColumnExtra(parentId, nodes) {
+  let extra = 0;
+  nodes.forEach(n => {
+    if (n.prepId) extra = Math.max(extra, prepChipGeometry(parentId, n.prepId).col);
+  });
+  return extra;
+}
 
 // Блоки препов для одной колонки детей. items — дети в порядке колонки
 // с итоговыми y/h; columnX — левый край колонки (крупной карточки).
@@ -31,9 +54,11 @@ function prepChipsForColumn(parentId, items, columnX, kind) {
     const top = items[i].y + items[i].h / 2;
     const bottom = items[j].y + items[j].h / 2;
     const cy = (top + bottom) / 2;
+    const g = prepChipGeometry(parentId, prepId);
+    const x = columnX - g.gap - g.w;
     chips.push({
-      kind, parentId, prepId,
-      x: columnX - PREP_GAP - PREP_W, y: cy - PREP_H / 2, w: PREP_W, h: PREP_H,
+      kind, parentId, prepId, collapsed: g.collapsed,
+      x, y: cy - g.h / 2, w: g.w, h: g.h, subX: x + g.w + g.gap / 2,
       members: items.slice(i, j + 1).map(it => it.node.id)
     });
     i = j + 1;
@@ -41,9 +66,6 @@ function prepChipsForColumn(parentId, items, columnX, kind) {
   return chips;
 }
 
-function hasPrepAmong(nodes) {
-  return nodes.some(n => n.prepId);
-}
 
 function computeLayout(overrides) {
   // overrides.activeCardH — реальная высота активной карточки (может быть
@@ -76,8 +98,8 @@ function computeLayout(overrides) {
   let spineX = PAD;
   spineNodes.forEach((nodeId, i) => {
     const node = state.nodes[nodeId];
-    // Преп на линии к этому узлу — промежуток перед ним шире на PREP_COL
-    if (i > 0 && node.prepId) spineX += PREP_COL;
+    // Преп на линии к этому узлу — промежуток перед ним шире на место под блок
+    if (i > 0 && node.prepId) spineX += prepChipGeometry(spineNodes[i - 1], node.prepId).col;
     cards.push({ node, x: spineX, y: spineY, w: CARD_W, h: hFor(nodeId), isActive: false });
     spineX += CARD_W + H_GAP;
   });
@@ -88,9 +110,11 @@ function computeLayout(overrides) {
     const gapLeft = prev.x + prev.w;
     // Линия хребта идёт от середины prev к середине cur — блок сидит на её середине
     const cy = (prev.y + prev.h / 2 + cur.y + cur.h / 2) / 2;
+    const g = prepChipGeometry(prev.node.id, cur.node.prepId);
+    const x = gapLeft + (cur.x - gapLeft - g.w) / 2;
     preps.push({
-      kind: 'spine', parentId: prev.node.id, prepId: cur.node.prepId,
-      x: gapLeft + (cur.x - gapLeft - PREP_W) / 2, y: cy - PREP_H / 2, w: PREP_W, h: PREP_H,
+      kind: 'spine', parentId: prev.node.id, prepId: cur.node.prepId, collapsed: g.collapsed,
+      x, y: cy - g.h / 2, w: g.w, h: g.h, subX: x + g.w,
       members: [cur.node.id]
     });
   }
@@ -102,7 +126,7 @@ function computeLayout(overrides) {
   const lastSpineCard = cards[cards.length - 1];
   const siblings = parentId === null ? [activeNode] : getChildrenSorted(parentId);
   const stackX = lastSpineCard
-    ? lastSpineCard.x + CARD_W + H_GAP_MINI + (hasPrepAmong(siblings) ? PREP_COL : 0)
+    ? lastSpineCard.x + CARD_W + H_GAP_MINI + prepColumnExtra(parentId, siblings)
     : PAD;
   const stackTopY = spineY;
 
@@ -146,7 +170,7 @@ function computeLayout(overrides) {
   // ===== 3) ПРОДОЛЖЕНИЯ активного (если он не свёрнут) =====
   const children = getVisibleChildren(activeId);
   const activeRight = activeCardPos.x + activeCardPos.w;
-  const childX = activeRight + CHILD_H_GAP + (hasPrepAmong(children) ? PREP_COL : 0);
+  const childX = activeRight + CHILD_H_GAP + prepColumnExtra(activeId, children);
   let childTopY = activeCardPos.y;
   const childItems = [];
 
@@ -242,7 +266,7 @@ function computeFullTreeLayout(overrides) {
       };
     }
 
-    const childX = x + w + LEVEL_H_GAP + (hasPrepAmong(children) ? PREP_COL : 0);
+    const childX = x + w + LEVEL_H_GAP + prepColumnExtra(nodeId, children);
     let childResults = [];
     let totalChildH = 0;
     children.forEach((ch, i) => {
@@ -284,8 +308,10 @@ function computeFullTreeLayout(overrides) {
     if (i < state.roots.length - 1) curY += ROOT_V_GAP;
   });
 
+  const buses = applyTreePins(cards, preps);
+
   let maxRight = 0, maxBottom = 0;
-  cards.forEach(c => {
+  cards.concat(preps).forEach(c => {
     maxRight = Math.max(maxRight, c.x + c.w);
     maxBottom = Math.max(maxBottom, c.y + c.h);
   });
@@ -294,7 +320,90 @@ function computeFullTreeLayout(overrides) {
     cards,
     minis: [],
     preps,
+    buses,
+    byId: new Map(cards.map(c => [c.node.id, c])),
     width: maxRight + PAD,
     height: Math.max(maxBottom + PAD, 220)
   };
+}
+
+/* Ручные закрепления поверх автоматической раскладки полного дерева.
+   Обход сверху вниз: закреплённая карточка ставится в «родитель + смещение»
+   (корень — в абсолютные координаты), незакреплённая сдвигается так же, как
+   сдвинулся её родитель, — поэтому ветка едет вместе с перенесённым узлом.
+   Блоки препов аналогично: закреплённый — от родителя, иначе со сдвигом
+   родителя. Шина родителя — его правый край + закреплённый или BUS_OFFSET.
+   Если что-то ушло левее/выше PAD, всё сдвигается обратно на холст. */
+function applyTreePins(cards, preps) {
+  const pins = state.treePins || {};
+  const nodePins = pins.nodes || {};
+  const byId = new Map(cards.map(c => [c.node.id, c]));
+  const shift = new Map();
+
+  const place = (id, parentId) => {
+    const el = byId.get(id);
+    if (!el) return;
+    const autoX = el.x, autoY = el.y;
+    const pin = nodePins[id];
+    const parent = parentId !== null ? byId.get(parentId) : null;
+    if (pin) {
+      el.x = (parent ? parent.x : 0) + pin.dx;
+      el.y = (parent ? parent.y : 0) + pin.dy;
+      el.pinned = true;
+    } else if (parent) {
+      const s = shift.get(parentId);
+      el.x += s.dx; el.y += s.dy;
+    }
+    shift.set(id, { dx: el.x - autoX, dy: el.y - autoY });
+    getVisibleChildren(id).forEach(ch => place(ch.id, id));
+  };
+  state.roots.forEach(r => place(r, null));
+
+  preps.forEach(chip => {
+    const parent = byId.get(chip.parentId);
+    if (!parent) return;
+    const pin = (pins.preps || {})[prepLinkKey(chip.parentId, chip.prepId)];
+    const autoX = chip.x;
+    if (pin) {
+      chip.x = parent.x + pin.dx;
+      chip.y = parent.y + pin.dy;
+      chip.pinned = true;
+    } else {
+      const s = shift.get(chip.parentId) || { dx: 0, dy: 0 };
+      chip.x += s.dx; chip.y += s.dy;
+    }
+    chip.subX += chip.x - autoX;
+  });
+
+  // Шина не уходит правее своих отводов: иначе линии к детям и препам
+  // пошли бы назад. Ограничение — левый край ближайшего ребёнка/блока препа.
+  const buses = {};
+  cards.forEach(c => {
+    const children = getVisibleChildren(c.node.id);
+    if (children.length === 0) return;
+    const pin = (pins.buses || {})[c.node.id];
+    const inChip = new Set();
+    const ends = [];
+    preps.forEach(p => {
+      if (p.parentId !== c.node.id) return;
+      p.members.forEach(id => inChip.add(id));
+      ends.push(p.x);
+    });
+    children.forEach(ch => { if (!inChip.has(ch.id) && byId.get(ch.id)) ends.push(byId.get(ch.id).x); });
+    const maxX = Math.min(...ends) - 8;
+    let x = c.x + c.w + (pin ? pin.dx : BUS_OFFSET);
+    if (pin && maxX > c.x + c.w) x = Math.min(x, maxX);
+    buses[c.node.id] = { x, pinned: !!pin };
+  });
+
+  let minX = Infinity, minY = Infinity;
+  cards.concat(preps).forEach(c => { minX = Math.min(minX, c.x); minY = Math.min(minY, c.y); });
+  const fixX = minX < PAD ? PAD - minX : 0;
+  const fixY = minY < PAD ? PAD - minY : 0;
+  if (fixX || fixY) {
+    cards.concat(preps).forEach(c => { c.x += fixX; c.y += fixY; });
+    preps.forEach(c => { c.subX += fixX; });
+    Object.values(buses).forEach(b => { b.x += fixX; });
+  }
+  return buses;
 }

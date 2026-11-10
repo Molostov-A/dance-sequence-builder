@@ -52,6 +52,8 @@
     <div class="view-header">
       <span>Дерево связок</span>
       <div class="tree-view-toggle">
+        <button class="view-btn hidden" id="btnResetPins" title="Открепить всё и вернуть автоматическую раскладку">↺</button>
+        <button class="view-btn" id="btnTogglePreps" title="Свернуть все препы">‖</button>
         <button class="view-btn active" id="btnViewPath" title="Только активная ветка">⌨</button>
         <button class="view-btn" id="btnViewAll" title="Все ветви дерева">⊞</button>
       </div>
@@ -63,6 +65,7 @@
         <div id="treeInner">
           <svg id="linesSvg"></svg>
           <div id="nodesLayer"></div>
+          <div id="linkControls" class="link-controls hidden"></div>
         </div>
       </div>
     </div>
@@ -219,6 +222,22 @@
   </div>
 </div>
 
+<div class="modal-bg" id="comboFoldersModal" role="dialog" aria-modal="true" aria-labelledby="comboFoldersTitle">
+  <div class="modal combo-folders-modal">
+    <h3 id="comboFoldersTitle">Папки связки</h3>
+    <p class="hint">Связка может лежать в нескольких папках сразу.</p>
+    <div class="combo-folders-list" id="comboFoldersList"></div>
+    <div class="combo-folders-new">
+      <input type="text" id="comboFolderNewInput" placeholder="Новая папка" autocomplete="off">
+      <button class="btn secondary" id="btnAddComboFolder" type="button">+ Создать</button>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btnSaveComboFolders">Сохранить</button>
+      <button class="btn secondary" id="btnCloseComboFolders">Отмена</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="comboDescriptionModal" role="dialog" aria-modal="true" aria-labelledby="comboDescriptionTitle">
   <div class="modal combo-description-modal">
     <h3 id="comboDescriptionTitle">Описание связки</h3>
@@ -331,6 +350,7 @@
 </div>
 
 <div id="mentionTooltip" class="mention-tooltip hidden"></div>
+<div id="prepTooltip" class="prep-tooltip hidden"></div>
 
 <script src="js/constants.js"></script>
 <script src="js/state.js"></script>
@@ -341,9 +361,11 @@
 <script src="js/nodes.js"></script>
 <script src="js/path.js"></script>
 <script src="js/layout.js"></script>
+<script src="js/treePins.js"></script>
 <script src="js/form.js"></script>
 <script src="js/tree.js"></script>
 <script src="js/combos.js"></script>
+<script src="js/comboFolders.js"></script>
 <script src="js/exports.js"></script>
 <script src="js/panels.js"></script>
 <script src="js/pan.js"></script>

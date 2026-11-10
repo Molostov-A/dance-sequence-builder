@@ -181,9 +181,9 @@ function reparentNode(nodeId, newParentId) {
   // Ключи видео и описаний — состав комбинации со счётами. У комбинаций,
   // проходящих через переезжающую ветку, состав меняется, и привязки теряются.
   const affected = collectCombos().filter(c => c.some(n => moved.has(n.id))
-    && (getComboVideos(c).length > 0 || getComboDescription(c)));
+    && (getComboVideos(c).length > 0 || getComboDescription(c) || comboFolderIdsByKey(comboVideoKey(c)).length > 0));
   if (affected.length > 0
-    && !confirm(`У ${affected.length} комбинац(ий) с этой веткой есть видео или описание — после переноса они отвяжутся. Перенести?`)) return;
+    && !confirm(`У ${affected.length} комбинац(ий) с этой веткой есть видео, описание или папки — после переноса они отвяжутся. Перенести?`)) return;
 
   const delta = (parent.beat + parent.length) - node.beat;
   subtree.forEach(id => { state.nodes[id].beat += delta; });
@@ -192,6 +192,8 @@ function reparentNode(nodeId, newParentId) {
     node.prepId = null;
   }
   node.parentId = newParentId;
+  // Закрепление считалось от старого родителя — у нового узел встаёт сам
+  if (state.treePins && state.treePins.nodes) delete state.treePins.nodes[nodeId];
   // merge, который теперь ведёт в собственного предка, дал бы петлю
   state.merges = state.merges.filter(m => !isDescendantOrSelf(m.from, m.to));
   state.activePath = pathToNode(nodeId);

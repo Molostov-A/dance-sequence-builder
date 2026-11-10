@@ -21,3 +21,7 @@ const PREP_W = 120;
 const PREP_H = 24;
 const PREP_GAP = 24;         // зазор слева и справа от блока препа
 const PREP_COL = PREP_W + PREP_GAP * 2; // на столько раздвигается колонка детей, если у кого-то из них есть преп
+// Свёрнутый преп — круглая метка на линии; ей нужен лишь узкий промежуток
+const PREP_MARK = 18;
+const PREP_MARK_GAP = 10;
+const PREP_MARK_COL = PREP_MARK + PREP_MARK_GAP * 2;

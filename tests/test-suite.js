@@ -59,9 +59,9 @@
     check('на активной карточке есть элементы управления', function () {
       return !!activeCard && !!activeCard.querySelector('.card-actions');
     });
-    check('у корня кнопка препа недоступна (нет входящей линии)', function () {
-      var b = activeCard.querySelector('.card-actions .icon-btn[title*="входящей"]');
-      return b && b.disabled;
+    check('кнопка ‖ на карточке — «Продолжить через преп» (исходящая связь)', function () {
+      var b = activeCard.querySelector('.card-actions .icon-btn[title="Продолжить через преп"]');
+      return b && !b.disabled;
     });
     check('есть кнопки смены родителя и перехода к комбинациям', function () {
       return !!activeCard.querySelector('.icon-btn[title*="родителя"]')
@@ -106,6 +106,78 @@
       var c = q('.node-card.active');
       return !!c && !!c.querySelector('.card-actions');
     });
+    // --- Свёрнутый преп: метка на линии, без широкой колонки ---
+    var colBefore = lastFullLayout.byId.get(childId).x;
+    togglePrepLinkCollapsed(rootId, prepId);
+    check('свёрнутый преп рисуется меткой, колонка сужается', function () {
+      return qa('#nodesLayer .prep-mark').length === 1 && qa('#nodesLayer .prep-chip').length === 0
+        && lastFullLayout.byId.get(childId).x === colBefore - (PREP_COL - PREP_MARK_COL);
+    });
+    check('блок/метка препа не наезжает на карточки', function () {
+      var mark = lastFullLayout.preps[0];
+      return lastFullLayout.cards.every(function (c) {
+        return mark.x + mark.w <= c.x || mark.x >= c.x + c.w || mark.y + mark.h <= c.y || mark.y >= c.y + c.h;
+      });
+    });
+    toggleAllPrepLinks();
+    check('«развернуть все препы» разворачивает свёрнутые', function () {
+      return state.collapsedPrepLinks.length === 0 && qa('#nodesLayer .prep-chip').length === 1;
+    });
+    toggleAllPrepLinks();
+    check('«свернуть все препы» сворачивает все', function () {
+      return state.collapsedPrepLinks.length === 1 && qa('#nodesLayer .prep-mark').length === 1;
+    });
+    toggleAllPrepLinks();
+
+    // --- Тултип и кнопки на связи с препом ---
+    check('у связей с препом есть хит-линии для тултипа', function () {
+      return qa('#linesSvg .link-hit[data-prep-id="' + prepId + '"]').length > 0;
+    });
+    showPrepTooltip(prepId, 100, 100);
+    check('тултип показывает название препа', function () {
+      var t = q('#prepTooltip');
+      return !t.classList.contains('hidden') && t.textContent.indexOf('Мостик') >= 0;
+    });
+    hidePrepTooltip();
+    showLinkControls(childId, 200, 200);
+    check('на связи с препом есть кнопки «Сменить» и «Убрать»', function () {
+      var t = q('#linkControls').textContent;
+      return !q('#linkControls').classList.contains('hidden') && t.indexOf('Сменить') >= 0 && t.indexOf('Убрать') >= 0;
+    });
+    hideLinkControls(true);
+
+    // --- Перетаскивание и закрепление (полное дерево) ---
+    var autoChild = { x: lastFullLayout.byId.get(childId).x, y: lastFullLayout.byId.get(childId).y };
+    var parentPos = lastFullLayout.byId.get(rootId);
+    state.treePins.nodes[childId] = { dx: autoChild.x - parentPos.x + 40, dy: autoChild.y - parentPos.y + 30 };
+    renderTree();
+    check('закреплённый блок встаёт на смещение от родителя и получает 📌', function () {
+      var c = lastFullLayout.byId.get(childId);
+      return c.x === autoChild.x + 40 && c.y === autoChild.y + 30
+        && !!q('.node-card[data-node-id="' + childId + '"] .pin-badge');
+    });
+    state.treePins.buses[rootId] = { dx: 12 };
+    state.treePins.preps[prepLinkKey(rootId, prepId)] = { dx: 5, dy: 5 };
+    renderTree();
+    check('шину и блок препа тоже можно закрепить', function () {
+      var root = lastFullLayout.byId.get(rootId);
+      return lastFullLayout.buses[rootId].x === root.x + root.w + 12 && lastFullLayout.preps[0].pinned
+        && !!q('#btnResetPins:not(.hidden)');
+    });
+    unpinNode(childId);
+    check('открепление возвращает автоматическое положение', function () {
+      var c = lastFullLayout.byId.get(childId);
+      return !state.treePins.nodes[childId] && c.x === autoChild.x && c.y === autoChild.y;
+    });
+    state.treePins = { nodes: {}, buses: {}, preps: {} };
+
+    // --- Убрать преп со связи ---
+    removePrepFromLink(rootId, prepId);
+    check('«Убрать преп со связи» снимает его со всех линий группы', function () {
+      return state.nodes[childId].prepId === null && state.nodes[child2Id].prepId === null;
+    });
+    setNodePrep(childId, prepId);
+    setNodePrep(child2Id, prepId);
     toggleTreeView('path');
 
     // --- Окно выбора препа ---
@@ -324,6 +396,80 @@
     check('при переезде счёты ветки сдвигаются', function () {
       return state.nodes[grandId].parentId === at16 && state.nodes[grandId].beat === 17;
     });
+
+    // --- Папки комбинаций ---
+    setView('combos');
+    check('без папок комбинации идут плоским списком', function () {
+      return !q('#combosContainer .combo-folder') && !!q('#combosContainer .combo-toolbar .combo-add-folder');
+    });
+    var f1 = addComboFolder(null);
+    check('новая папка сразу открывается на переименование', function () {
+      return !!q('.combo-folder[data-folder-id="' + f1 + '"] .combo-folder-name-input');
+    });
+    renameComboFolder(f1, 'Вечеринка');
+    var f2 = addComboFolder(f1);
+    renameComboFolder(f2, 'Медленные');
+    var allCombos = collectCombos();
+    var keyA = comboVideoKey(allCombos[0]);
+    setComboFolderIds(keyA, [f1, f2]);
+    render();
+    check('подпапка вложена в папку', function () {
+      var outer = q('.combo-folder[data-folder-id="' + f1 + '"]');
+      return outer && !!outer.querySelector('.combo-folder[data-folder-id="' + f2 + '"]');
+    });
+    check('комбинация видна в каждой своей папке, остальные — в «Без папки»', function () {
+      return qa('#combosContainer .combo-list > li').length === allCombos.length + 1
+        && qa('.combo-folder-loose .combo-list > li').length === allCombos.length - 1;
+    });
+    check('счётчик папки считает разные комбинации поддерева', function () {
+      return q('.combo-folder[data-folder-id="' + f1 + '"] > .combo-folder-head .combo-folder-count').textContent === '1';
+    });
+    toggleComboFolderCollapsed(f1);
+    check('свёрнутая папка прячет содержимое', function () {
+      return !q('.combo-folder[data-folder-id="' + f2 + '"]');
+    });
+    toggleComboFolderCollapsed(f1);
+
+    openComboFoldersModal(allCombos[1], 2);
+    var boxes = qa('#comboFoldersList input[type="checkbox"]');
+    check('окно папок связки показывает все папки галочками', function () {
+      return q('#comboFoldersModal').classList.contains('open') && boxes.length === 2;
+    });
+    boxes[1].checked = true;
+    boxes[1].dispatchEvent(new Event('change'));
+    saveComboFoldersModal();
+    check('галочка кладёт связку в папку', function () {
+      return comboFolderIdsByKey(comboVideoKey(allCombos[1])).join() === String(f2);
+    });
+
+    moveComboFolder(f2, null);
+    moveComboFolder(f1, f2);
+    check('папку можно перенести в другую папку', function () {
+      return getComboFolder(f2).parentId === null && getComboFolder(f1).parentId === f2;
+    });
+    moveComboFolder(f2, f1);
+    check('папку нельзя перенести в собственную подпапку', function () {
+      return getComboFolder(f2).parentId === null;
+    });
+
+    var brokenFolders = {
+      comboFolders: [{ id: 1, name: 'A', parentId: 2 }, { id: 2, name: 'B', parentId: 1 }, { id: 3, name: 'C', parentId: 99 }],
+      comboFolderLinks: { k: [1, 1, 99] }
+    };
+    normalizeComboFolders(brokenFolders);
+    check('нормализация разрывает циклы и чистит битые ссылки', function () {
+      var c = brokenFolders.comboFolders;
+      var loop = c[0].parentId !== null && c[1].parentId !== null;
+      return !loop && c[2].parentId === null && brokenFolders.comboFolderLinks.k.join() === '1'
+        && brokenFolders.nextComboFolderId === 4;
+    });
+
+    deleteComboFolder(f2);
+    check('удаление папки удаляет подпапки и привязки, но не комбинации', function () {
+      return state.comboFolders.length === 0 && Object.keys(state.comboFolderLinks).length === 0
+        && collectCombos().length === allCombos.length;
+    });
+    setView('tree');
 
     // --- Удаление препа ---
     deletePrep(prepId);

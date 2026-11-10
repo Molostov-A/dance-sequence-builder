@@ -1,5 +1,7 @@
 function render() {
   ensureActivePathValid();
+  // Закрепления и свёрнутые препы удалённых узлов/связей отбрасываются
+  normalizeTreePins(state);
   renderMovements();
   renderPreps();
   renderRootsBar();
@@ -66,6 +68,19 @@ document.getElementById('btnOpenComboVideoLink').addEventListener('click', openC
 document.getElementById('btnCloseComboVideo').addEventListener('click', closeComboVideoModal);
 document.getElementById('comboVideoModal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeComboVideoModal();
+});
+document.getElementById('btnSaveComboFolders').addEventListener('click', saveComboFoldersModal);
+document.getElementById('btnCloseComboFolders').addEventListener('click', closeComboFoldersModal);
+document.getElementById('btnAddComboFolder').addEventListener('click', addComboFolderFromModal);
+document.getElementById('comboFolderNewInput').addEventListener('keydown', (e) => {
+  if (e.isComposing) return;
+  if (e.key === 'Enter') { e.preventDefault(); addComboFolderFromModal(); }
+});
+document.getElementById('comboFoldersModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeComboFoldersModal();
+});
+document.getElementById('comboFoldersModal').addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { e.preventDefault(); closeComboFoldersModal(); }
 });
 document.getElementById('btnSaveComboDescription').addEventListener('click', saveComboDescription);
 document.getElementById('btnCloseComboDescription').addEventListener('click', closeComboDescriptionModal);
@@ -152,6 +167,8 @@ document.getElementById('mentionModal').addEventListener('click', (e) => {
 });
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
+document.getElementById('btnTogglePreps').addEventListener('click', (e) => { e.stopPropagation(); toggleAllPrepLinks(); });
+document.getElementById('btnResetPins').addEventListener('click', (e) => { e.stopPropagation(); resetTreePins(); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
 
 // Sidebar navigation
@@ -218,6 +235,8 @@ ensureActivePathValid();
 document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
 document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
 initMentions();
+initPrepTooltip();
+initLinkControls();
 pruneMentions();
 render();
 

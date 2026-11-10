@@ -9,8 +9,40 @@ function initialState() {
     comboDescriptions: {}, comboDescriptionSegments: {},
     currentView: 'tree', navPinned: true,
     collapsedNodes: [],
-    preps: [], nextPrepId: 1
+    preps: [], nextPrepId: 1,
+    comboFolders: [], nextComboFolderId: 1, comboFolderLinks: {}, collapsedComboFolders: [],
+    treePins: { nodes: {}, buses: {}, preps: {} }, collapsedPrepLinks: []
   };
+}
+// Папки комбинаций: битые записи отбрасываются, родитель, которого нет
+// (или который замкнул бы цикл), сбрасывается в корень.
+function normalizeComboFolders(data) {
+  if (!Array.isArray(data.comboFolders)) data.comboFolders = [];
+  data.comboFolders = data.comboFolders
+    .filter(f => f && typeof f === 'object' && f.id && typeof f.name === 'string')
+    .map(f => ({ id: f.id, name: f.name, parentId: f.parentId || null }));
+  const byId = new Map(data.comboFolders.map(f => [f.id, f]));
+  data.comboFolders.forEach(f => {
+    if (f.parentId && !byId.has(f.parentId)) f.parentId = null;
+    const seen = new Set([f.id]);
+    let cur = f.parentId ? byId.get(f.parentId) : null;
+    while (cur) {
+      if (seen.has(cur.id)) { f.parentId = null; break; }
+      seen.add(cur.id);
+      cur = cur.parentId ? byId.get(cur.parentId) : null;
+    }
+  });
+  const maxId = Math.max(0, ...data.comboFolders.map(f => Number(f.id) || 0));
+  if (!data.nextComboFolderId || data.nextComboFolderId <= maxId) data.nextComboFolderId = maxId + 1;
+  const links = data.comboFolderLinks && typeof data.comboFolderLinks === 'object' ? data.comboFolderLinks : {};
+  Object.keys(links).forEach(key => {
+    const ids = Array.isArray(links[key]) ? Array.from(new Set(links[key].filter(id => byId.has(id)))) : [];
+    if (ids.length) links[key] = ids; else delete links[key];
+  });
+  data.comboFolderLinks = links;
+  data.collapsedComboFolders = Array.isArray(data.collapsedComboFolders)
+    ? data.collapsedComboFolders.filter(id => byId.has(id))
+    : [];
 }
 function normalizeCollapsedNodes(data) {
   const nodes = data.nodes || {};
@@ -18,6 +50,36 @@ function normalizeCollapsedNodes(data) {
     ? data.collapsedNodes.filter(id => nodes[id])
     : [];
 }
+// Ручные закрепления и свёрнутые препы (см. treePins.js). Функция живёт
+// здесь, а не в treePins.js: loadState() выполняется при загрузке этого файла,
+// когда следующие скрипты ещё не подключены.
+function normalizeTreePins(data) {
+  const nodes = data.nodes || {};
+  const pins = data.treePins && typeof data.treePins === 'object' ? data.treePins : {};
+  const num = v => typeof v === 'number' && isFinite(v);
+  const clean = (map, valid, check) => {
+    const out = {};
+    Object.keys(map && typeof map === 'object' ? map : {}).forEach(k => {
+      const v = map[k];
+      if (valid(k) && v && check(v)) out[k] = v;
+    });
+    return out;
+  };
+  // Группа препа существует, пока у родителя есть ребёнок с этим препом
+  const prepGroupExists = (key) => {
+    const [pid, prepId] = key.split(':').map(Number);
+    return !!nodes[pid] && Object.keys(nodes).some(id => nodes[id].parentId === pid && nodes[id].prepId === prepId);
+  };
+  data.treePins = {
+    nodes: clean(pins.nodes, k => !!nodes[k], v => num(v.dx) && num(v.dy)),
+    buses: clean(pins.buses, k => !!nodes[k], v => num(v.dx)),
+    preps: clean(pins.preps, prepGroupExists, v => num(v.dx) && num(v.dy))
+  };
+  data.collapsedPrepLinks = Array.isArray(data.collapsedPrepLinks)
+    ? data.collapsedPrepLinks.filter(k => typeof k === 'string' && prepGroupExists(k))
+    : [];
+}
+
 function normalizeComboVideos(data) {
   if (!data.comboVideos || typeof data.comboVideos !== 'object') {
     data.comboVideos = {};
@@ -97,8 +159,19 @@ function loadState() {
     if (typeof data.navPinned !== 'boolean') data.navPinned = true;
     normalizePreps(data);
     normalizeCollapsedNodes(data);
+    normalizeComboFolders(data);
+    normalizeTreePins(data);
     return data;
-  } catch (e) { return null; }
+  } catch (e) {
+    // Не теряем данные молча: сохраняем нечитаемую копию рядом и пишем в консоль.
+    // Иначе первое же saveState() затёрло бы их пустым состоянием.
+    console.error('Не удалось загрузить сохранённые данные', e);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) localStorage.setItem(STORAGE_KEY + '-broken-' + Date.now(), raw);
+    } catch (e2) {}
+    return null;
+  }
 }
 function toggleTreeView(mode) {
   if (mode === undefined) mode = state.treeViewMode === 'path' ? 'all' : 'path';

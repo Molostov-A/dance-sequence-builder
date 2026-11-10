@@ -55,6 +55,7 @@ function exportCombos() {
         index: idx + 1, totalBeats, squares: totalBeats / 32,
         videos: getComboVideos(combo),
         description: getComboDescription(combo),
+        folders: comboFolderIdsByKey(comboVideoKey(combo)).map(comboFolderPath),
         steps: combo.map((n, i) => {
           const mov = getMovement(n.movementId);
           const step = {
@@ -113,6 +114,8 @@ function applyImportedJson(text) {
     if (!state.treeViewMode) state.treeViewMode = 'path';
     if (typeof state.navPinned !== 'boolean') state.navPinned = true;
     normalizePreps(state);
+    normalizeComboFolders(state);
+    normalizeTreePins(state);
     normalizeCollapsedNodes(state);
     pruneComboVideos();
     pruneComboDescriptions();

@@ -19,6 +19,22 @@ function copyDir(src, dest) {
   }
 }
 
+// loadState() выполняется прямо при загрузке state.js — до остальных скриптов.
+// Всё, что она вызывает, обязано быть объявлено в state.js, иначе загрузка
+// падает и сохранённые данные затираются пустым состоянием.
+{
+  const stateSrc = fs.readFileSync(path.join(projectRoot, 'js', 'state.js'), 'utf8');
+  const start = stateSrc.indexOf('function loadState()');
+  const body = stateSrc.slice(start, stateSrc.indexOf('\nfunction ', start + 1));
+  const called = new Set((body.match(/\b([a-zA-Z_]\w*)\(/g) || []).map(m => m.slice(0, -1)));
+  const builtins = new Set(['loadState', 'if', 'catch', 'JSON', 'parse', 'getItem', 'setItem', 'isArray', 'error', 'now']);
+  const missing = [...called].filter(n => !builtins.has(n) && !new RegExp(`function ${n}\\(`).test(stateSrc));
+  if (missing.length) {
+    console.error('loadState() вызывает функции, объявленные вне state.js: ' + missing.join(', '));
+    process.exit(1);
+  }
+}
+
 copyDir(path.join(projectRoot, 'css'), path.join(tmpDir, 'css'));
 copyDir(path.join(projectRoot, 'js'), path.join(tmpDir, 'js'));
 fs.copyFileSync(path.join(projectRoot, 'index.html'), path.join(tmpDir, 'index.html'));

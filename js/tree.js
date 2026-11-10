@@ -53,6 +53,9 @@ function renderBreadcrumb() {
 
 function renderTree() {
   rebuildNodeVideoIndex();
+  updateTreeToolbar();
+  if (!(treeDrag && treeDrag.moved)) hideLinkControls(true);
+  if (state.treeViewMode !== 'all') lastFullLayout = null;
   const inner = document.getElementById('treeInner');
   const nodesLayer = document.getElementById('nodesLayer');
   const svg = document.getElementById('linesSvg');
@@ -173,12 +176,20 @@ function renderTree() {
     const x2 = cur.x;
     const y2 = cur.y + cur.h / 2;
     const chip = preps.find(p => p.kind === 'spine' && p.members[0] === cur.node.id);
+    const link = { 'data-link-child': cur.node.id };
     if (chip) {
       const cy = chip.y + chip.h / 2;
-      svgLine(svg, `M ${x1} ${y1} L ${chip.x} ${cy}`, '#3498db', 2);
-      svgLine(svg, `M ${chip.x + chip.w} ${cy} L ${x2} ${y2}`, '#3498db', 2);
+      const d1 = `M ${x1} ${y1} L ${chip.x} ${cy}`;
+      const d2 = `M ${chip.x + chip.w} ${cy} L ${x2} ${y2}`;
+      svgLine(svg, d1, '#3498db', 2);
+      svgLine(svg, d2, '#3498db', 2);
+      Object.assign(link, { 'data-prep-id': chip.prepId });
+      svgHit(svg, d1, link);
+      svgHit(svg, d2, link);
     } else {
-      svgLine(svg, `M ${x1} ${y1} L ${x2} ${y2}`, '#3498db', 2);
+      const d = `M ${x1} ${y1} L ${x2} ${y2}`;
+      svgLine(svg, d, '#3498db', 2);
+      svgHit(svg, d, link);
     }
   }
 
@@ -210,7 +221,7 @@ function renderTree() {
     const chip = stackChips.find(p => p.members.includes(activeCard.node.id));
     if (chip) {
       const cy = chip.y + chip.h / 2;
-      const subX = chip.x + chip.w + PREP_GAP / 2;
+      const subX = chip.subX;
       svgLine(svg, `M ${parentRight} ${parentMidY} L ${trunkX} ${parentMidY} L ${trunkX} ${cy} L ${chip.x} ${cy}`, '#3498db', 2);
       svgLine(svg, `M ${chip.x + chip.w} ${cy} L ${subX} ${cy} L ${subX} ${activeMidY} L ${activeLeft} ${activeMidY}`, '#3498db', 2);
     } else {
@@ -338,78 +349,209 @@ function svgLine(svg, d, stroke, width, dash) {
   path.setAttribute('stroke-width', String(width));
   if (dash) path.setAttribute('stroke-dasharray', dash);
   svg.appendChild(path);
+  return path;
+}
+
+// Невидимая широкая линия поверх настоящей — ловит наведение (тултип препа,
+// кнопки управления связью) и перетаскивание шины. attrs — data-атрибуты.
+function svgHit(svg, d, attrs, className) {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('class', 'link-hit' + (className ? ' ' + className : ''));
+  Object.keys(attrs).forEach(k => path.setAttribute(k, String(attrs[k])));
+  svg.appendChild(path);
+  return path;
 }
 
 // Разветвление «родитель → колонка детей» с учётом препов. Дети без препа
 // получают отвод прямо с шины родителя (busX). Группа детей с общим препом —
 // один отвод в левый край блока препа, а от правого края блока — своя
-// короткая шина (subX, в зазоре PREP_GAP перед колонкой) с отводами к
-// каждому ребёнку группы. Так видно, что все эти продолжения идут через
-// один и тот же мостик.
+// короткая шина (chip.subX) с отводами к каждому ребёнку группы. Так видно,
+// что все эти продолжения идут через один и тот же мостик.
+// Отвод к каждому ребёнку получает хит-линию data-link-child (кнопки
+// управления связью), участки через преп — ещё и data-prep-id (тултип).
 function drawFanOut(svg, o) {
   const mid = it => it.y + it.h / 2;
   const inChip = new Set();
   o.chips.forEach(ch => ch.members.forEach(id => inChip.add(id)));
   const entries = [];
-  o.items.forEach(it => { if (!inChip.has(it.node.id)) entries.push({ x: it.x, y: mid(it) }); });
-  o.chips.forEach(ch => entries.push({ x: ch.x, y: mid(ch) }));
+  o.items.forEach(it => { if (!inChip.has(it.node.id)) entries.push({ x: it.x, y: mid(it), childId: it.node.id }); });
+  o.chips.forEach(ch => entries.push({ x: ch.x, y: mid(ch), chip: ch }));
   if (entries.length === 0) return;
 
   if (o.fromX !== o.busX) svgLine(svg, `M ${o.fromX} ${o.fromY} L ${o.busX} ${o.fromY}`, o.stroke, o.width, o.dash);
   const ys = entries.map(e => e.y).concat(o.fromY);
-  svgLine(svg, `M ${o.busX} ${Math.min(...ys)} L ${o.busX} ${Math.max(...ys)}`, o.stroke, o.width, o.dash);
-  entries.forEach(e => svgLine(svg, `M ${o.busX} ${e.y} L ${e.x} ${e.y}`, o.stroke, o.width, o.dash));
+  const busD = `M ${o.busX} ${Math.min(...ys)} L ${o.busX} ${Math.max(...ys)}`;
+  svgLine(svg, busD, o.stroke, o.width, o.dash);
+  entries.forEach(e => {
+    const d = `M ${o.busX} ${e.y} L ${e.x} ${e.y}`;
+    svgLine(svg, d, o.stroke, o.width, o.dash);
+    if (e.chip) svgHit(svg, d, { 'data-prep-id': e.chip.prepId });
+    else svgHit(svg, d, { 'data-link-child': e.childId });
+  });
 
   const byId = new Map(o.items.map(it => [it.node.id, it]));
   o.chips.forEach(ch => {
     const cy = mid(ch);
-    const subX = ch.x + ch.w + PREP_GAP / 2;
+    const subX = ch.subX;
     const members = ch.members.map(id => byId.get(id)).filter(Boolean);
     const mys = members.map(mid).concat(cy);
-    svgLine(svg, `M ${ch.x + ch.w} ${cy} L ${subX} ${cy}`, o.stroke, o.width, o.dash);
-    svgLine(svg, `M ${subX} ${Math.min(...mys)} L ${subX} ${Math.max(...mys)}`, o.stroke, o.width, o.dash);
-    members.forEach(m => svgLine(svg, `M ${subX} ${mid(m)} L ${m.x} ${mid(m)}`, o.stroke, o.width, o.dash));
+    const outD = `M ${ch.x + ch.w} ${cy} L ${subX} ${cy}`;
+    const subD = `M ${subX} ${Math.min(...mys)} L ${subX} ${Math.max(...mys)}`;
+    svgLine(svg, outD, o.stroke, o.width, o.dash);
+    svgLine(svg, subD, o.stroke, o.width, o.dash);
+    svgHit(svg, outD, { 'data-prep-id': ch.prepId });
+    svgHit(svg, subD, { 'data-prep-id': ch.prepId });
+    members.forEach(m => {
+      const d = `M ${subX} ${mid(m)} L ${m.x} ${mid(m)}`;
+      svgLine(svg, d, o.stroke, o.width, o.dash);
+      svgHit(svg, d, { 'data-prep-id': ch.prepId, 'data-link-child': m.node.id });
+    });
   });
+
+  // Шину полного дерева можно перетаскивать влево-вправо (закрепляется)
+  if (o.busParentId !== undefined) {
+    const hit = svgHit(svg, busD, { 'data-bus-parent': o.busParentId }, 'bus-hit');
+    hit.addEventListener('pointerdown', (e) => startBusDrag(e, o.busParentId));
+  }
 }
 
-// Блок препа на линии. Клик по блоку — редактирование препа,
-// «+» — новое продолжение за этим же препом (ещё одна вариация после мостика).
+// Маленькая кнопка «📌» у закреплённого элемента — открепить
+function renderPinBadge(title, onUnpin) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'pin-badge';
+  btn.textContent = '📌';
+  btn.title = title;
+  btn.onclick = (e) => { e.stopPropagation(); onUnpin(); };
+  return btn;
+}
+
+/* Блок препа на линии (поверх связи). Развёрнутый: название и кнопки,
+   появляющиеся при наведении: «+» — новое продолжение за этим препом,
+   «–» — свернуть, «✕» — убрать преп со связей. Клик по названию —
+   редактирование препа. Свёрнутый — круглая метка «‖», клик разворачивает.
+   В полном дереве блок можно перетаскивать (закрепляется). */
 function renderPrepChip(chip) {
   const prep = getPrep(chip.prepId);
   const parent = state.nodes[chip.parentId];
   const el = document.createElement('div');
-  el.className = 'prep-chip';
+  el.className = chip.collapsed ? 'prep-mark' : 'prep-chip';
+  el.setAttribute('data-prep-id', chip.prepId);
   el.style.left = chip.x + 'px';
   el.style.top = chip.y + 'px';
   el.style.width = chip.w + 'px';
   el.style.height = chip.h + 'px';
+  if (chip.pinned) el.classList.add('pinned');
+  el.addEventListener('pointerdown', (e) => startPrepDrag(e, chip));
 
-  const name = document.createElement('span');
-  name.className = 'prep-chip-name';
-  renderRichText(nameSegmentsOf(prep), name);
-  const notes = movementNotes(prep);
-  el.title = `Преп: ${prep ? prep.name : '???'}` + (notes ? `\n\n${notes}` : '') + '\n\nНажмите, чтобы редактировать';
-  el.onclick = (e) => {
-    e.stopPropagation();
-    if (prep) openMovementModal({ kind: 'prep', prepId: prep.id });
-  };
-  el.appendChild(name);
-
-  if (parent) {
-    const nextBeat = parent.beat + parent.length;
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'prep-chip-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Новое продолжение за этим препом';
-    addBtn.disabled = allowedLengths(nextBeat).length === 0;
-    addBtn.onclick = (e) => {
+  if (chip.collapsed) {
+    el.textContent = '‖';
+    el.setAttribute('aria-label', `Преп ${prep ? prep.name : ''} (свёрнут)`);
+    el.onclick = (e) => { e.stopPropagation(); togglePrepLinkCollapsed(chip.parentId, chip.prepId); };
+  } else {
+    const name = document.createElement('span');
+    name.className = 'prep-chip-name';
+    renderRichText(nameSegmentsOf(prep), name);
+    el.onclick = (e) => {
       e.stopPropagation();
-      openForm({ parentId: parent.id, isRoot: false, beat: nextBeat, prepId: chip.prepId });
+      if (prep) openMovementModal({ kind: 'prep', prepId: prep.id });
     };
-    el.appendChild(addBtn);
+    el.appendChild(name);
+
+    const btns = document.createElement('span');
+    btns.className = 'prep-chip-btns';
+    const btn = (text, title, onClick, cls) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'prep-chip-btn' + (cls ? ' ' + cls : '');
+      b.textContent = text;
+      b.title = title;
+      b.onclick = (e) => { e.stopPropagation(); onClick(); };
+      return b;
+    };
+    if (parent) {
+      const nextBeat = parent.beat + parent.length;
+      const add = btn('+', 'Новое продолжение за этим препом',
+        () => openForm({ parentId: parent.id, isRoot: false, beat: nextBeat, prepId: chip.prepId }), 'add');
+      add.disabled = allowedLengths(nextBeat).length === 0;
+      btns.appendChild(add);
+    }
+    btns.append(
+      btn('–', 'Свернуть преп', () => togglePrepLinkCollapsed(chip.parentId, chip.prepId)),
+      btn('✕', 'Убрать преп со связи', () => removePrepFromLink(chip.parentId, chip.prepId), 'danger')
+    );
+    el.appendChild(btns);
+  }
+  if (chip.pinned) {
+    el.appendChild(renderPinBadge('Открепить блок препа: вернуть автоматическое положение',
+      () => unpinPrep(prepLinkKey(chip.parentId, chip.prepId))));
   }
   return el;
+}
+
+/* ===== Кнопки управления связью =====
+   При наведении на линию родитель → ребёнок рядом с курсором появляется
+   плашка #linkControls: «‖ Преп» (поставить), а если преп есть — «⇄ Сменить»
+   и «✕ Убрать». Плашка живёт в #treeInner (вне #nodesLayer), поэтому
+   переживает перерисовку; прячется с задержкой, чтобы до неё можно было
+   довести мышь. */
+let linkControlsTimer = 0;
+
+function showLinkControls(childId, clientX, clientY) {
+  const node = state.nodes[childId];
+  const box = document.getElementById('linkControls');
+  if (!node || node.parentId === null || !box) return;
+  clearTimeout(linkControlsTimer);
+  if (box.dataset.childId === String(childId) && !box.classList.contains('hidden')) return;
+  box.dataset.childId = childId;
+  box.innerHTML = '';
+  const prep = node.prepId ? getPrep(node.prepId) : null;
+  const btn = (text, title, onClick, cls) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'link-ctl-btn' + (cls ? ' ' + cls : '');
+    b.textContent = text;
+    b.title = title;
+    b.onclick = (e) => { e.stopPropagation(); hideLinkControls(true); onClick(); };
+    return b;
+  };
+  if (prep) {
+    box.append(
+      btn('⇄ Сменить преп', `Сейчас: ${prep.name}`, () => openNodePrepPicker(childId)),
+      btn('✕ Убрать преп', 'Убрать преп с этой связи', () => setNodePrep(childId, null), 'danger')
+    );
+  } else {
+    box.append(btn('‖ Добавить преп', 'Поставить преп на эту связь', () => openNodePrepPicker(childId)));
+  }
+  const inner = document.getElementById('treeInner').getBoundingClientRect();
+  box.style.left = (clientX - inner.left + 8) + 'px';
+  box.style.top = (clientY - inner.top - 34) + 'px';
+  box.classList.remove('hidden');
+}
+
+function hideLinkControls(now) {
+  const box = document.getElementById('linkControls');
+  if (!box) return;
+  clearTimeout(linkControlsTimer);
+  const hide = () => { box.classList.add('hidden'); box.dataset.childId = ''; };
+  if (now) hide();
+  else linkControlsTimer = setTimeout(hide, 350);
+}
+
+function initLinkControls() {
+  const wrap = document.getElementById('treeWrap');
+  const box = document.getElementById('linkControls');
+  wrap.addEventListener('mouseover', (e) => {
+    if (treeDrag && treeDrag.moved) return;
+    const hit = e.target.closest && e.target.closest('[data-link-child]');
+    if (hit) showLinkControls(Number(hit.getAttribute('data-link-child')), e.clientX, e.clientY);
+  });
+  wrap.addEventListener('mouseout', (e) => {
+    if (e.target.closest && e.target.closest('[data-link-child]')) hideLinkControls(false);
+  });
+  box.addEventListener('mouseenter', () => clearTimeout(linkControlsTimer));
+  box.addEventListener('mouseleave', () => hideLinkControls(false));
 }
 
 // Кнопки управления активной карточкой — общие для обоих режимов дерева.
@@ -434,13 +576,14 @@ function renderCardActions(node) {
   const addBtn = button('+', canContinue ? 'Продолжить' : 'Нельзя начать',
     canContinue ? () => openForm({ parentId: node.id, isRoot: false, beat: nextBeat }) : null);
 
-  const isRoot = node.parentId === null;
-  const prep = node.prepId ? getPrep(node.prepId) : null;
-  const prepBtn = button('‖',
-    isRoot ? 'У стартового движения нет входящей линии для препа'
-      : (prep ? `Преп на входящей линии: ${prep.name}` : 'Поставить преп на входящую линию'),
-    isRoot ? null : () => openNodePrepPicker(node.id),
-    prep ? 'prep-active' : '');
+  // Преп на ИСХОДЯЩЕЙ связи: выбрать/создать преп и сразу добавить
+  // продолжение за ним. Преп существующей связи меняется на самой линии.
+  const prepBtn = button('‖', canContinue ? 'Продолжить через преп' : 'Нельзя начать',
+    canContinue ? () => openPrepPicker({
+      title: 'Продолжить через преп',
+      hint: 'Выберите или создайте преп — затем откроется форма нового движения за ним.',
+      onPick: (prepId) => openForm({ parentId: node.id, isRoot: false, beat: nextBeat, prepId })
+    }) : null);
 
   const existingMerge = state.merges.find(m => m.from === node.id);
   let mergeBtn;
@@ -585,7 +728,8 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
     heightFor: id => cardHeights.get(id) || CARD_H,
     miniHFor: id => cardHeights.get(id) || MINI_H
   });
-  const { cards, preps, width, height } = layout;
+  const { cards, preps, buses, width, height } = layout;
+  lastFullLayout = layout;
   const w = Math.max(width, 300);
   const h = Math.max(height, 300);
 
@@ -593,6 +737,12 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
     const c = cards[i];
     el.style.left = c.x + 'px';
     el.style.top = c.y + 'px';
+    // Перетаскивание карточки закрепляет её относительно родителя
+    el.addEventListener('pointerdown', (e) => startNodeDrag(e, c.node.id));
+    if (c.pinned) {
+      el.classList.add('pinned');
+      el.appendChild(renderPinBadge('Открепить: вернуть автоматическое положение', () => unpinNode(c.node.id)));
+    }
   });
 
   inner.style.width = w + 'px';
@@ -602,6 +752,15 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   svg.style.width = w + 'px';
   svg.style.height = h + 'px';
   preps.forEach(p => nodesLayer.appendChild(renderPrepChip(p)));
+  Object.keys(buses).forEach(pid => {
+    if (!buses[pid].pinned) return;
+    const parent = layout.byId.get(Number(pid));
+    const badge = renderPinBadge('Открепить линию: вернуть автоматическое положение', () => unpinBus(Number(pid)));
+    badge.classList.add('bus-pin');
+    badge.style.left = (buses[pid].x - 9) + 'px';
+    badge.style.top = (parent.y + parent.h / 2 - 26) + 'px';
+    nodesLayer.appendChild(badge);
+  });
   nodesLayer.style.visibility = '';
 
   // Merge selection mode in full tree
@@ -642,7 +801,8 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
     if (children.length === 0) return;
     drawFanOut(svg, {
       fromX: c.x + c.w, fromY: c.y + c.h / 2,
-      busX: c.x + c.w + BUS_OFFSET,
+      busX: buses[c.node.id] ? buses[c.node.id].x : c.x + c.w + BUS_OFFSET,
+      busParentId: c.node.id,
       items: children.map(ch => posMap.get(ch.id)).filter(Boolean),
       chips: preps.filter(p => p.parentId === c.node.id),
       stroke: '#3498db', width: 2
