@@ -307,6 +307,35 @@
     check('видео привязано к корневому узлу', function () {
       return getNodeVideoCount(rootId) === 1;
     });
+    // --- Одно видео в нескольких комбинациях объединяется ---
+    var key2 = comboVideoKey(combos[1]);
+    // та же запись Диска, но ссылка в другом виде
+    state.comboVideos[key2] = ['https://drive.google.com/open?id=abc123', 'https://drive.google.com/file/d/other9/view'];
+    rebuildNodeVideoIndex();
+    rebuildMovementVideoIndex();
+    check('одинаковое видео у узла считается один раз', function () {
+      return getNodeVideoCount(rootId) === 2;
+    });
+    check('у движения одинаковое видео — одна запись со списком комбинаций', function () {
+      var e = getMovementVideoEntries(1);
+      var same = e.find(function (x) { return x.key.indexOf('abc123') >= 0; });
+      return e.length === 2 && same && same.combos.length === 2
+        && same.combos.map(function (c) { return c.index; }).join() === '1,2';
+    });
+    openMovementVideosModal(1);
+    check('в окне видео движения одинаковое видео показано одной строкой с двумя комбинациями', function () {
+      var items = qa('#movementVideosList .movement-video-item');
+      return items.length === 2 && items[0].querySelectorAll('.video-combo-block').length === 2
+        && q('#movementVideosHint').textContent.indexOf('комбинаций: 2') >= 0;
+    });
+    closeMovementVideosModal();
+    openNodeVideosModal(rootId);
+    check('в окне видео узла — то же объединение', function () {
+      var items = qa('#nodeVideosList .node-video-item');
+      return items.length === 2 && items[0].querySelectorAll('.video-combo-block').length === 2;
+    });
+    closeNodeVideosModal();
+    delete state.comboVideos[key2];
     delete state.comboVideos[key];
     rebuildNodeVideoIndex();
 

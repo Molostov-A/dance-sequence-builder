@@ -52,36 +52,62 @@ function comboSizeLabel(totalBeats) {
   if (rem) label += ` +${rem}`;
   return label;
 }
+/* Одно и то же видео может быть прикреплено к нескольким комбинациям.
+   В окнах видео узла и движения такие привязки объединяются в одну запись
+   { url, key, combos: [...] }: видео показывается один раз, а под ним —
+   все комбинации, где оно есть. Одинаковыми считаются ссылки на один файл
+   Google Диска (сравнивается embed-адрес), иначе — совпадающий текст ссылки. */
+function videoIdentity(url) {
+  const parsed = parseComboVideoUrl(url);
+  return parsed ? parsed.embedUrl : (url || '').trim();
+}
+
+// Добавить привязку «видео — комбинация» в список сгруппированных записей
+function pushGroupedVideo(entries, byKey, url, comboInfo) {
+  const key = videoIdentity(url);
+  let entry = byKey.get(key);
+  if (!entry) {
+    entry = { url, key, combos: [] };
+    byKey.set(key, entry);
+    entries.push(entry);
+  }
+  if (!entry.combos.some(c => c.index === comboInfo.index)) entry.combos.push(comboInfo);
+}
+
 let nodeVideoIndex = {};
 function rebuildNodeVideoIndex() {
-  nodeVideoIndex = {};
+  const keys = {};
   collectCombos().forEach(combo => {
     const videos = getComboVideos(combo);
     if (videos.length === 0) return;
-    const seen = new Set();
     combo.forEach(node => {
-      if (seen.has(node.id)) return;
-      seen.add(node.id);
-      nodeVideoIndex[node.id] = (nodeVideoIndex[node.id] || 0) + videos.length;
+      if (!keys[node.id]) keys[node.id] = new Set();
+      videos.forEach(url => keys[node.id].add(videoIdentity(url)));
     });
   });
+  nodeVideoIndex = {};
+  Object.keys(keys).forEach(id => { nodeVideoIndex[id] = keys[id].size; });
 }
+// Число РАЗНЫХ видео у узла (одинаковые из разных комбинаций — одно)
 function getNodeVideoCount(nodeId) {
   return nodeVideoIndex[nodeId] || 0;
 }
 function getNodeVideoEntries(nodeId) {
   const entries = [];
+  const byKey = new Map();
   collectCombos().forEach((combo, idx) => {
     if (!combo.some(n => n.id === nodeId)) return;
-    getComboVideos(combo).forEach(url => {
-      entries.push({ combo, index: idx + 1, url });
-    });
+    getComboVideos(combo).forEach(url => pushGroupedVideo(entries, byKey, url, { combo, index: idx + 1 }));
   });
   return entries;
 }
+// movementVideoIndex[movementId] — сгруппированные по видео записи:
+// { url, key, combos: [{ combo, index, places }] }, places — позиции этого
+// движения в комбинации (если оно повторяется, мест несколько).
 let movementVideoIndex = {};
 function rebuildMovementVideoIndex() {
   movementVideoIndex = {};
+  const byKeyFor = {};
   collectCombos().forEach((combo, comboIndex) => {
     const videos = getComboVideos(combo);
     if (videos.length === 0) return;
@@ -93,11 +119,13 @@ function rebuildMovementVideoIndex() {
     videos.forEach(url => {
       Object.keys(placesByMovement).forEach(key => {
         const movementId = Number(key);
-        if (!movementVideoIndex[movementId]) movementVideoIndex[movementId] = [];
-        movementVideoIndex[movementId].push({
+        if (!movementVideoIndex[movementId]) {
+          movementVideoIndex[movementId] = [];
+          byKeyFor[movementId] = new Map();
+        }
+        pushGroupedVideo(movementVideoIndex[movementId], byKeyFor[movementId], url, {
           combo,
           index: comboIndex + 1,
-          url,
           places: placesByMovement[key]
         });
       });
@@ -561,8 +589,9 @@ function openNodeVideosModal(nodeId) {
   nodeVideosModalState = { nodeId, entries, activeIndex: 0, openUrl: '' };
   const mov = getMovement(node.movementId);
   document.getElementById('nodeVideosTitle').textContent = `Видео: ${mov ? mov.name : '???'}`;
+  const comboCount = new Set(entries.flatMap(e => e.combos.map(c => c.index))).size;
   document.getElementById('nodeVideosHint').textContent =
-    `${formatBeat(node.beat, node.length)} · видео: ${entries.length}`;
+    `${formatBeat(node.beat, node.length)} · видео: ${entries.length} · комбинаций: ${comboCount}`;
   renderNodeVideoList(nodeId);
   setNodeVideosEntry(0);
   document.getElementById('nodeVideosModal').classList.add('open');
@@ -597,21 +626,28 @@ function renderNodeVideoList(nodeId) {
 
     const head = document.createElement('span');
     head.className = 'node-video-item-head';
-    head.textContent = `Комбинация #${entry.index}`;
+    head.textContent = entry.combos.length > 1
+      ? `Видео ${idx + 1} · в ${entry.combos.length} комбинациях`
+      : `Видео ${idx + 1} · комбинация #${entry.combos[0].index}`;
+    item.appendChild(head);
 
-    const totalBeats = entry.combo.reduce((s, n) => s + n.length, 0);
-    const meta = document.createElement('span');
-    meta.className = 'node-video-item-meta';
-    meta.textContent = `${comboSizeLabel(totalBeats)} · ${formatBeat(node.beat, node.length)}`;
+    entry.combos.forEach(c => {
+      const totalBeats = c.combo.reduce((s, n) => s + n.length, 0);
+      const block = document.createElement('span');
+      block.className = 'video-combo-block';
+      const meta = document.createElement('span');
+      meta.className = 'node-video-item-meta';
+      meta.textContent = `Комбинация #${c.index} · ${comboSizeLabel(totalBeats)}`;
+      const seq = document.createElement('span');
+      seq.className = 'node-video-item-seq';
+      seq.textContent = c.combo.map(n => {
+        const mov = getMovement(n.movementId);
+        return mov ? mov.name : '???';
+      }).join(' → ');
+      block.append(meta, seq);
+      item.appendChild(block);
+    });
 
-    const seq = document.createElement('span');
-    seq.className = 'node-video-item-seq';
-    seq.textContent = entry.combo.map(n => {
-      const mov = getMovement(n.movementId);
-      return mov ? mov.name : '???';
-    }).join(' → ');
-
-    item.append(head, meta, seq);
     item.onclick = () => setNodeVideosEntry(idx);
     list.appendChild(item);
   });

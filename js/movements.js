@@ -193,7 +193,8 @@ function renderMovements() {
     li.onclick = () => openMovementModal({ movementId: m.id });
     const usage = Object.values(state.nodes).filter(n => n.movementId === m.id).length;
     const videoEntries = getMovementVideoEntries(m.id);
-    const videoPlaceCount = videoEntries.reduce((sum, entry) => sum + entry.places.length, 0);
+    const videoPlaceCount = videoEntries.reduce((sum, entry) =>
+      sum + entry.combos.reduce((s, c) => s + c.places.length, 0), 0);
     const idSpan = document.createElement('span');
     idSpan.className = 'mov-id'; idSpan.textContent = '#' + m.id;
     const name = document.createElement('span');
@@ -234,13 +235,15 @@ function openMovementVideosModal(movementId) {
   rebuildMovementVideoIndex();
   const entries = getMovementVideoEntries(movementId);
   if (entries.length === 0) return;
-  const placesCount = entries.reduce((sum, entry) => sum + entry.places.length, 0);
+  const placesCount = entries.reduce((sum, entry) =>
+    sum + entry.combos.reduce((s, c) => s + c.places.length, 0), 0);
+  const comboCount = new Set(entries.flatMap(e => e.combos.map(c => c.index))).size;
 
   movementVideosFocus = document.activeElement;
   movementVideosModalState = { movementId, entries, activeIndex: 0, openUrl: '' };
   document.getElementById('movementVideosTitle').textContent = `Видео: ${mov.name}`;
   document.getElementById('movementVideosHint').textContent =
-    `Видео: ${entries.length} · мест: ${placesCount}`;
+    `Видео: ${entries.length} · комбинаций: ${comboCount} · мест: ${placesCount}`;
   renderMovementVideoList();
   setMovementVideosEntry(0);
   document.getElementById('movementVideosModal').classList.add('open');
@@ -273,31 +276,39 @@ function renderMovementVideoList() {
     item.type = 'button';
     item.className = 'movement-video-item';
 
+    // Одно видео — одна строка; под ним все комбинации, где оно прикреплено
     const head = document.createElement('span');
     head.className = 'movement-video-item-head';
-    head.textContent = `Комбинация #${entry.index}`;
+    head.textContent = entry.combos.length > 1
+      ? `Видео ${idx + 1} · в ${entry.combos.length} комбинациях`
+      : `Видео ${idx + 1} · комбинация #${entry.combos[0].index}`;
+    item.appendChild(head);
 
-    const places = document.createElement('span');
-    places.className = 'movement-video-item-places';
-    const placesLabel = document.createElement('span');
-    placesLabel.className = 'movement-video-item-places-label';
-    placesLabel.textContent = entry.places.length > 1 ? 'Места:' : 'Смотреть:';
-    places.appendChild(placesLabel);
-    entry.places.forEach(place => {
-      const chip = document.createElement('span');
-      chip.className = 'movement-video-place';
-      chip.textContent = formatBeat(place.beat, place.length);
-      places.appendChild(chip);
+    entry.combos.forEach(c => {
+      const block = document.createElement('span');
+      block.className = 'video-combo-block';
+      const places = document.createElement('span');
+      places.className = 'movement-video-item-places';
+      const placesLabel = document.createElement('span');
+      placesLabel.className = 'movement-video-item-places-label';
+      placesLabel.textContent = `#${c.index} · ` + (c.places.length > 1 ? 'места:' : 'смотреть:');
+      places.appendChild(placesLabel);
+      c.places.forEach(place => {
+        const chip = document.createElement('span');
+        chip.className = 'movement-video-place';
+        chip.textContent = formatBeat(place.beat, place.length);
+        places.appendChild(chip);
+      });
+
+      const seq = document.createElement('span');
+      seq.className = 'movement-video-item-seq';
+      seq.textContent = c.combo.map(n => {
+        const mov = getMovement(n.movementId);
+        return mov ? mov.name : '???';
+      }).join(' → ');
+      block.append(places, seq);
+      item.appendChild(block);
     });
-
-    const seq = document.createElement('span');
-    seq.className = 'movement-video-item-seq';
-    seq.textContent = entry.combo.map(n => {
-      const mov = getMovement(n.movementId);
-      return mov ? mov.name : '???';
-    }).join(' → ');
-
-    item.append(head, places, seq);
     item.onclick = () => setMovementVideosEntry(idx);
     list.appendChild(item);
   });
