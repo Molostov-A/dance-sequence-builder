@@ -11,7 +11,9 @@ function initialState() {
     collapsedNodes: [],
     preps: [], nextPrepId: 1,
     comboFolders: [], nextComboFolderId: 1, comboFolderLinks: {}, collapsedComboFolders: [],
-    treePins: { nodes: {}, buses: {}, preps: {} }, collapsedPrepLinks: []
+    treePins: { nodes: {}, buses: {}, preps: {}, links: {} }, collapsedPrepLinks: [],
+    looseCombosCollapsed: false,
+    treeHighlight: { folderId: null, color: '#e67e22' }
   };
 }
 // Папки комбинаций: битые записи отбрасываются, родитель, которого нет
@@ -43,6 +45,12 @@ function normalizeComboFolders(data) {
   data.collapsedComboFolders = Array.isArray(data.collapsedComboFolders)
     ? data.collapsedComboFolders.filter(id => byId.has(id))
     : [];
+  // Подсветка папки в дереве: папка может пропасть, цвет — только #rrggbb
+  const hl = data.treeHighlight && typeof data.treeHighlight === 'object' ? data.treeHighlight : {};
+  data.treeHighlight = {
+    folderId: byId.has(hl.folderId) ? hl.folderId : null,
+    color: /^#[0-9a-f]{6}$/i.test(hl.color || '') ? hl.color : '#e67e22'
+  };
 }
 function normalizeCollapsedNodes(data) {
   const nodes = data.nodes || {};
@@ -70,10 +78,23 @@ function normalizeTreePins(data) {
     const [pid, prepId] = key.split(':').map(Number);
     return !!nodes[pid] && Object.keys(nodes).some(id => nodes[id].parentId === pid && nodes[id].prepId === prepId);
   };
+  // Ключ связи: 'c:<id ребёнка>' — линия к ребёнку (от родителя или от блока
+  // его препа); 'p:<id родителя>:<id препа>' — линия от родителя к блоку препа.
+  const linkExists = (key) => {
+    const parts = key.split(':');
+    if (parts[0] === 'c') {
+      const n = nodes[parts[1]];
+      return !!n && n.parentId !== null && n.parentId !== undefined;
+    }
+    return parts[0] === 'p' && prepGroupExists(parts[1] + ':' + parts[2]);
+  };
+  const linkValid = v => (v.shape === 'bus' && num(v.ex))
+    || (v.shape === 'curve' && num(v.hx) && num(v.hy));
   data.treePins = {
     nodes: clean(pins.nodes, k => !!nodes[k], v => num(v.dx) && num(v.dy)),
     buses: clean(pins.buses, k => !!nodes[k], v => num(v.dx)),
-    preps: clean(pins.preps, prepGroupExists, v => num(v.dx) && num(v.dy))
+    preps: clean(pins.preps, prepGroupExists, v => num(v.dx) && num(v.dy)),
+    links: clean(pins.links, linkExists, linkValid)
   };
   data.collapsedPrepLinks = Array.isArray(data.collapsedPrepLinks)
     ? data.collapsedPrepLinks.filter(k => typeof k === 'string' && prepGroupExists(k))

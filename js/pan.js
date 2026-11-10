@@ -4,7 +4,7 @@
   let startX, startY, startSL, startST;
 
   function isInteractive(el) {
-    return el.closest('.node-card, .mini-card, .card-actions, .icon-btn, .prep-chip, .prep-mark, .link-controls, .bus-hit, button, a, input');
+    return el.closest('.node-card, .mini-card, .card-actions, .icon-btn, .prep-chip, .prep-mark, .link-controls, .bus-hit, .link-hit.draggable, .curve-handle, .pin-badge, button, a, input');
   }
 
   function onPointerDown(x, y, e) {

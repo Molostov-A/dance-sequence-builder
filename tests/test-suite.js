@@ -139,12 +139,50 @@
       return !t.classList.contains('hidden') && t.textContent.indexOf('Мостик') >= 0;
     });
     hidePrepTooltip();
-    showLinkControls(childId, 200, 200);
-    check('на связи с препом есть кнопки «Сменить» и «Убрать»', function () {
+    showLinkControls(q('#linesSvg .link-hit[data-link-child="' + childId + '"]'), 200, 200);
+    check('на связи с препом есть кнопки «Сменить», «Убрать» и формы линии', function () {
       var t = q('#linkControls').textContent;
-      return !q('#linkControls').classList.contains('hidden') && t.indexOf('Сменить') >= 0 && t.indexOf('Убрать') >= 0;
+      return !q('#linkControls').classList.contains('hidden') && t.indexOf('Сменить') >= 0
+        && t.indexOf('Убрать') >= 0 && t.indexOf('Изгиб') >= 0;
     });
     hideLinkControls(true);
+
+    // --- Преп по центру своей линии ---
+    var chip0 = lastFullLayout.preps[0];
+    var bus0 = lastFullLayout.buses[rootId].x;
+    check('незакреплённый преп стоит посередине между шиной и колонкой', function () {
+      return Math.abs((chip0.x + chip0.w / 2) - (bus0 + chip0.colX) / 2) < 1;
+    });
+
+    // --- Форма связи: шина по умолчанию, изгиб по переключателю ---
+    var linkKey = 'c:' + childId;
+    state.treePins.links[linkKey] = { shape: 'bus', ex: 50 };
+    renderTree();
+    check('перетянутая связь остаётся шиной со своим изломом и 📌', function () {
+      var hit = q('#linesSvg .link-hit[data-link-key="' + linkKey + '"]');
+      return hit && hit.getAttribute('d').indexOf(' C ') < 0 && !!q('#nodesLayer .pin-badge.link-pin');
+    });
+    toggleLinkShape(linkKey);
+    check('переключатель делает связь плавной кривой с ручкой', function () {
+      var hit = q('#linesSvg .link-hit[data-link-key="' + linkKey + '"]');
+      return state.treePins.links[linkKey].shape === 'curve' && hit.getAttribute('d').indexOf(' C ') > 0
+        && !!q('#linesSvg .curve-handle[data-link-key="' + linkKey + '"]');
+    });
+    state.treePins.links[linkKey] = { shape: 'curve', hx: 10, hy: -20 };
+    renderTree();
+    check('кривая проходит через перетянутую ручку', function () {
+      var h = q('#linesSvg .curve-handle[data-link-key="' + linkKey + '"]');
+      var path = q('#linesSvg .link-hit[data-link-key="' + linkKey + '"]');
+      // Хит-линия шириной 14px: точка ручки должна попасть в её обводку
+      var pt = q('#linesSvg').createSVGPoint();
+      pt.x = Number(h.getAttribute('cx'));
+      pt.y = Number(h.getAttribute('cy'));
+      return path.isPointInStroke(pt);
+    });
+    resetLink(linkKey);
+    check('«Авто» возвращает связь на общую шину', function () {
+      return !state.treePins.links[linkKey] && !q('#linesSvg .curve-handle');
+    });
 
     // --- Перетаскивание и закрепление (полное дерево) ---
     var autoChild = { x: lastFullLayout.byId.get(childId).x, y: lastFullLayout.byId.get(childId).y };
@@ -198,6 +236,37 @@
     check('форма показывает выбранный преп линии', function () {
       var el = q('#formLayer .prep-form-name');
       return el && el.textContent.indexOf('Мостик') >= 0;
+    });
+    check('поиск по словам: каждое слово отдельно, без учёта регистра и ё', function () {
+      return searchWordsMatch('Поворот партнёрши', 'парт пов') && searchWordsMatch('Поворот партнёрши', 'ПАРТНЕР')
+        && !searchWordsMatch('Поворот партнёрши', 'пов волна') && searchWordsMatch('Что угодно', '  ');
+    });
+    var formSearch = q('#formLayer .mov-search');
+    formSearch.value = 'тор';
+    formSearch.dispatchEvent(new Event('input'));
+    check('строка поиска в форме оставляет только совпадения и выбирает первое', function () {
+      var opts = qa('#formLayer .mov-select option');
+      return opts.length === 1 && opts[0].textContent === 'Второе' && q('#formLayer .mov-select').value === '2';
+    });
+    formSearch.value = 'нет такого';
+    formSearch.dispatchEvent(new Event('input'));
+    check('без совпадений предлагается создать новое движение', function () {
+      var btn = q('#formLayer .mov-search-create');
+      return !btn.classList.contains('hidden') && q('#formLayer .mov-select').value === '';
+    });
+    q('#formLayer .mov-search-create').click();
+    check('«Создать» переносит текст в поле нового движения', function () {
+      return mentionText(q('#formLayer .new-mov-input')) === 'нет такого';
+    });
+    formSearch.value = '';
+    formSearch.dispatchEvent(new Event('input'));
+    q('#formLayer .mov-select').value = '1';
+    check('правка выбранного движения обновляет его подпись в форме', function () {
+      state.movements[0].name = 'Базовое!';
+      syncFormMovementOption(1);
+      var ok = q('#formLayer .mov-select option[value="1"]').textContent === 'Базовое!';
+      state.movements[0].name = 'Базовое';
+      return ok;
     });
     closeForm();
     openForm({ parentId: null, isRoot: true, beat: 1 });
@@ -429,6 +498,44 @@
       return !q('.combo-folder[data-folder-id="' + f2 + '"]');
     });
     toggleComboFolderCollapsed(f1);
+    toggleLooseCombosCollapsed();
+    check('группа «Без папки» сворачивается', function () {
+      return !!q('.combo-folder-loose') && !q('.combo-folder-loose .combo-list')
+        && q('.combo-folder-loose .combo-folder-toggle').textContent === '▸';
+    });
+    toggleLooseCombosCollapsed();
+    check('и разворачивается обратно', function () {
+      return qa('.combo-folder-loose .combo-list > li').length === allCombos.length - 1;
+    });
+
+    // --- Подсветка папки в дереве ---
+    setView('tree');
+    check('панель подсветки во вкладке дерева предлагает папки и «Без подсветки»', function () {
+      var opts = qa('#treeHighlightFolder option');
+      return opts.length === 3 && opts[0].value === '' && q('#treeHighlightFolder').value === ''
+        && q('#treeHighlightColor').disabled;
+    });
+    check('без выбранной папки ничего не подсвечено', function () {
+      return qa('.folder-highlight').length === 0;
+    });
+    setTreeHighlightFolder(String(f1));
+    setTreeHighlightColor('#ff0000');
+    var hlIds = highlightedNodeIds();
+    check('подсвечиваются движения комбинаций папки и её подпапок', function () {
+      return allCombos[0].every(function (n) { return hlIds.has(n.id); }) && hlIds.size === allCombos[0].length;
+    });
+    toggleTreeView('all');
+    check('у подсвеченных карточек рамка выбранного цвета', function () {
+      var els = qa('.node-card.folder-highlight');
+      return els.length === hlIds.size && els.every(function (el) { return el.style.outline.indexOf('rgb(255, 0, 0)') >= 0; });
+    });
+    toggleTreeView('path');
+    setTreeHighlightFolder('');
+    check('«Без подсветки» снимает рамки', function () {
+      return qa('.folder-highlight').length === 0 && state.treeHighlight.color === '#ff0000';
+    });
+    setTreeHighlightFolder(String(f2));
+    setView('combos');
 
     openComboFoldersModal(allCombos[1], 2);
     var boxes = qa('#comboFoldersList input[type="checkbox"]');
@@ -468,6 +575,9 @@
     check('удаление папки удаляет подпапки и привязки, но не комбинации', function () {
       return state.comboFolders.length === 0 && Object.keys(state.comboFolderLinks).length === 0
         && collectCombos().length === allCombos.length;
+    });
+    check('удаление подсвеченной папки снимает подсветку', function () {
+      return state.treeHighlight.folderId === null;
     });
     setView('tree');
 

@@ -5,7 +5,8 @@
    папки работают как метки, одна комбинация может лежать в нескольких
    папках и показывается в каждой. Ключ — comboVideoKey(combo), как у видео
    и описаний: при изменении состава связки привязка отпадает вместе с ними
-   (чистит pruneComboDescriptions). Свёрнутые папки — state.collapsedComboFolders.
+   (чистит pruneComboDescriptions). Свёрнутые папки — state.collapsedComboFolders,
+   свёрнутая группа «Без папки» — state.looseCombosCollapsed.
    ========================================================= */
 let comboFolderEditingId = null;   // папка, у которой сейчас открыто поле имени
 let comboFoldersModalState = null;
@@ -85,6 +86,13 @@ function deleteComboFolder(id) {
   state.comboFolders = state.comboFolders.filter(f => !gone.has(f.id));
   Object.keys(state.comboFolderLinks || {}).forEach(key => setComboFolderIds(key, state.comboFolderLinks[key]));
   state.collapsedComboFolders = (state.collapsedComboFolders || []).filter(c => !gone.has(c));
+  if (state.treeHighlight && gone.has(state.treeHighlight.folderId)) state.treeHighlight.folderId = null;
+  saveState(); render();
+}
+
+// Группа «Без папки» сворачивается так же, как папки (state.looseCombosCollapsed)
+function toggleLooseCombosCollapsed() {
+  state.looseCombosCollapsed = !state.looseCombosCollapsed;
   saveState(); render();
 }
 
@@ -118,6 +126,78 @@ function moveComboFolder(id, parentId) {
   folder.parentId = parentId || null;
   if (parentId) state.collapsedComboFolders = (state.collapsedComboFolders || []).filter(c => c !== parentId);
   saveState(); render();
+}
+
+/* ===== Подсветка папки в дереве связок =====
+   state.treeHighlight = { folderId, color }. Подсвечиваются узлы всех
+   комбинаций, лежащих в выбранной папке или её подпапках: у карточки
+   появляется рамка выбранного цвета (outline — не спорит с тенью активной
+   карточки). folderId === null — ничего не подсвечивается. */
+function treeHighlightSettings() {
+  if (!state.treeHighlight) state.treeHighlight = { folderId: null, color: '#e67e22' };
+  return state.treeHighlight;
+}
+
+function highlightedNodeIds() {
+  const hl = state.treeHighlight;
+  const ids = new Set();
+  if (!hl || !hl.folderId || !getComboFolder(hl.folderId)) return ids;
+  const folders = new Set(comboFolderSubtreeIds(hl.folderId));
+  collectCombos().forEach(combo => {
+    if (comboFolderIdsByKey(comboVideoKey(combo)).some(id => folders.has(id))) {
+      combo.forEach(n => ids.add(n.id));
+    }
+  });
+  return ids;
+}
+
+function applyFolderHighlight(el, nodeId, ids) {
+  if (!ids.has(nodeId)) return;
+  el.classList.add('folder-highlight');
+  el.style.outline = `3px solid ${treeHighlightSettings().color}`;
+}
+
+function setTreeHighlightFolder(value) {
+  treeHighlightSettings().folderId = value ? Number(value) : null;
+  saveState(); renderTree();
+}
+
+function setTreeHighlightColor(value) {
+  if (!/^#[0-9a-f]{6}$/i.test(value)) return;
+  treeHighlightSettings().color = value;
+  saveState(); renderTree();
+}
+
+// Панель «Подсветка папки» во вкладке дерева: список папок с отступом по
+// вложенности, выбор цвета и счётчик подсвеченных движений.
+function renderTreeHighlightBar(count) {
+  const select = document.getElementById('treeHighlightFolder');
+  const color = document.getElementById('treeHighlightColor');
+  const info = document.getElementById('treeHighlightInfo');
+  if (!select) return;
+  const hl = treeHighlightSettings();
+  select.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = (state.comboFolders || []).length ? 'Без подсветки' : 'Нет папок';
+  select.appendChild(none);
+  const walk = (parentId, depth) => {
+    childComboFolders(parentId).forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = '\u00a0\u00a0'.repeat(depth) + f.name;
+      select.appendChild(opt);
+      walk(f.id, depth + 1);
+    });
+  };
+  walk(null, 0);
+  select.value = hl.folderId ? String(hl.folderId) : '';
+  select.disabled = !(state.comboFolders || []).length;
+  color.value = hl.color;
+  color.disabled = !hl.folderId;
+  info.textContent = hl.folderId
+    ? (count ? `движений: ${count}` : 'в папке нет комбинаций')
+    : (select.disabled ? 'папки создаются в разделе «Комбинации»' : '');
 }
 
 /* ===== Окно «Папки комбинации» — отметить папки галочками ===== */
@@ -331,20 +411,32 @@ function renderComboFolderTree(container, entries, renderItem, filtered) {
     box.className = 'combo-folder combo-folder-loose';
     const head = document.createElement('div');
     head.className = 'combo-folder-head';
+    const collapsed = !!state.looseCombosCollapsed;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'combo-folder-toggle';
+    toggle.textContent = collapsed ? '▸' : '▾';
+    toggle.title = collapsed ? 'Развернуть' : 'Свернуть';
+    toggle.onclick = toggleLooseCombosCollapsed;
     const name = document.createElement('span');
     name.className = 'combo-folder-name';
     name.textContent = 'Без папки';
+    name.title = 'Нажмите, чтобы свернуть или развернуть';
+    name.onclick = toggleLooseCombosCollapsed;
     const countEl = document.createElement('span');
     countEl.className = 'combo-folder-count';
     countEl.textContent = String(loose.length);
-    head.append(name, countEl);
-    const ul = document.createElement('ul');
-    ul.className = 'combo-list';
-    loose.forEach(e => ul.appendChild(renderItem(e)));
-    const body = document.createElement('div');
-    body.className = 'combo-folder-body';
-    body.appendChild(ul);
-    box.append(head, body);
+    head.append(toggle, name, countEl);
+    box.appendChild(head);
+    if (!collapsed) {
+      const ul = document.createElement('ul');
+      ul.className = 'combo-list';
+      loose.forEach(e => ul.appendChild(renderItem(e)));
+      const body = document.createElement('div');
+      body.className = 'combo-folder-body';
+      body.appendChild(ul);
+      box.appendChild(body);
+    }
     container.appendChild(box);
   }
 }

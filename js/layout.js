@@ -43,7 +43,19 @@ function prepColumnExtra(parentId, nodes) {
 
 // Блоки препов для одной колонки детей. items — дети в порядке колонки
 // с итоговыми y/h; columnX — левый край колонки (крупной карточки).
-function prepChipsForColumn(parentId, items, columnX, kind) {
+// Блок препа по умолчанию стоит посередине своей линии: между шиной
+// родителя (busX) и колонкой детей (columnX). colX запоминается, чтобы
+// после закрепления шины блок можно было заново отцентрировать
+// (centerPrepChip). subX — короткая шина группы между блоком и колонкой.
+function centerPrepChip(chip, busX) {
+  const free = chip.colX - busX;
+  let x = busX + (free - chip.w) / 2;
+  x = Math.max(busX + 4, Math.min(x, chip.colX - chip.w - 8));
+  chip.x = x;
+  chip.subX = (x + chip.w + chip.colX) / 2;
+}
+
+function prepChipsForColumn(parentId, items, columnX, kind, busX) {
   const chips = [];
   let i = 0;
   while (i < items.length) {
@@ -55,12 +67,13 @@ function prepChipsForColumn(parentId, items, columnX, kind) {
     const bottom = items[j].y + items[j].h / 2;
     const cy = (top + bottom) / 2;
     const g = prepChipGeometry(parentId, prepId);
-    const x = columnX - g.gap - g.w;
-    chips.push({
+    const chip = {
       kind, parentId, prepId, collapsed: g.collapsed,
-      x, y: cy - g.h / 2, w: g.w, h: g.h, subX: x + g.w + g.gap / 2,
+      x: 0, y: cy - g.h / 2, w: g.w, h: g.h, subX: 0, colX: columnX,
       members: items.slice(i, j + 1).map(it => it.node.id)
-    });
+    };
+    centerPrepChip(chip, busX);
+    chips.push(chip);
     i = j + 1;
   }
   return chips;
@@ -161,7 +174,8 @@ function computeLayout(overrides) {
         curY += miniHFor(sib.id) + MINI_GAP;
       }
     });
-    preps.push(...prepChipsForColumn(parentId, stackItems, stackX, 'sibling'));
+    preps.push(...prepChipsForColumn(parentId, stackItems, stackX, 'sibling',
+      lastSpineCard.x + lastSpineCard.w + H_GAP_MINI / 2));
   }
 
   cards.push(activeCardPos);
@@ -189,7 +203,7 @@ function computeLayout(overrides) {
     childItems.push(mini);
     childTopY += childH + MINI_GAP;
   });
-  preps.push(...prepChipsForColumn(activeId, childItems, childX, 'child'));
+  preps.push(...prepChipsForColumn(activeId, childItems, childX, 'child', activeRight + BUS_OFFSET));
 
   // ===== Размеры =====
   let maxRight = 0, maxBottom = 0;
@@ -289,7 +303,7 @@ function computeFullTreeLayout(overrides) {
     childResults.forEach(r => elements.push(...r.elements));
 
     const childItems = childResults.map(r => r.elements[0]);
-    const subPreps = prepChipsForColumn(nodeId, childItems, childX, 'full');
+    const subPreps = prepChipsForColumn(nodeId, childItems, childX, 'full', x + w + BUS_OFFSET);
     childResults.forEach(r => subPreps.push(...r.preps));
 
     return { elements, preps: subPreps, width: subtreeW, height: Math.max(h, childrenBlockH) };
@@ -364,15 +378,17 @@ function applyTreePins(cards, preps) {
     if (!parent) return;
     const pin = (pins.preps || {})[prepLinkKey(chip.parentId, chip.prepId)];
     const autoX = chip.x;
+    const s = shift.get(chip.parentId) || { dx: 0, dy: 0 };
     if (pin) {
       chip.x = parent.x + pin.dx;
       chip.y = parent.y + pin.dy;
       chip.pinned = true;
     } else {
-      const s = shift.get(chip.parentId) || { dx: 0, dy: 0 };
       chip.x += s.dx; chip.y += s.dy;
     }
     chip.subX += chip.x - autoX;
+    // Колонка детей по умолчанию едет вместе с родителем
+    chip.colX += s.dx;
   });
 
   // Шина не уходит правее своих отводов: иначе линии к детям и препам
@@ -387,13 +403,21 @@ function applyTreePins(cards, preps) {
     preps.forEach(p => {
       if (p.parentId !== c.node.id) return;
       p.members.forEach(id => inChip.add(id));
-      ends.push(p.x);
+      // Незакреплённому блоку нужно место между шиной и колонкой
+      ends.push(p.pinned ? p.x : p.colX - p.w - 16);
     });
     children.forEach(ch => { if (!inChip.has(ch.id) && byId.get(ch.id)) ends.push(byId.get(ch.id).x); });
     const maxX = Math.min(...ends) - 8;
     let x = c.x + c.w + (pin ? pin.dx : BUS_OFFSET);
     if (pin && maxX > c.x + c.w) x = Math.min(x, maxX);
     buses[c.node.id] = { x, pinned: !!pin };
+    // Незакреплённый преп снова встаёт посередине своей линии — от итоговой
+    // общей шины или от собственного излома линии к препу (treePins.links)
+    preps.forEach(p => {
+      if (p.parentId !== c.node.id || p.pinned) return;
+      const own = ((pins.links || {})['p:' + c.node.id + ':' + p.prepId]);
+      centerPrepChip(p, own && own.shape === 'bus' ? c.x + c.w + own.ex : x);
+    });
   });
 
   let minX = Infinity, minY = Infinity;
@@ -402,7 +426,7 @@ function applyTreePins(cards, preps) {
   const fixY = minY < PAD ? PAD - minY : 0;
   if (fixX || fixY) {
     cards.concat(preps).forEach(c => { c.x += fixX; c.y += fixY; });
-    preps.forEach(c => { c.subX += fixX; });
+    preps.forEach(c => { c.subX += fixX; c.colX += fixX; });
     Object.values(buses).forEach(b => { b.x += fixX; });
   }
   return buses;

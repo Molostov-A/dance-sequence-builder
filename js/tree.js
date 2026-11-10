@@ -51,9 +51,14 @@ function renderBreadcrumb() {
   });
 }
 
+// Узлы комбинаций подсвеченной папки — пересчитываются в начале renderTree
+let treeHighlightIds = new Set();
+
 function renderTree() {
   rebuildNodeVideoIndex();
   updateTreeToolbar();
+  treeHighlightIds = highlightedNodeIds();
+  renderTreeHighlightBar(treeHighlightIds.size);
   if (!(treeDrag && treeDrag.moved)) hideLinkControls(true);
   if (state.treeViewMode !== 'all') lastFullLayout = null;
   const inner = document.getElementById('treeInner');
@@ -176,7 +181,7 @@ function renderTree() {
     const x2 = cur.x;
     const y2 = cur.y + cur.h / 2;
     const chip = preps.find(p => p.kind === 'spine' && p.members[0] === cur.node.id);
-    const link = { 'data-link-child': cur.node.id };
+    const link = { 'data-link-key': 'c:' + cur.node.id, 'data-link-child': cur.node.id };
     if (chip) {
       const cy = chip.y + chip.h / 2;
       const d1 = `M ${x1} ${y1} L ${chip.x} ${cy}`;
@@ -212,6 +217,7 @@ function renderTree() {
     const stackChips = preps.filter(p => p.kind === 'sibling');
 
     drawFanOut(svg, {
+      parentId: lastSpine.node.id,
       fromX: trunkX, fromY: parentMidY, busX: trunkX,
       items: siblingMinis.concat(activeCard),
       chips: stackChips,
@@ -233,6 +239,7 @@ function renderTree() {
   const childMinis = minis.filter(m => m.kind === 'child');
   if (childMinis.length > 0 && activeCard) {
     drawFanOut(svg, {
+      parentId: activeCard.node.id,
       fromX: activeCard.x + activeCard.w, fromY: activeCard.y + activeCard.h / 2,
       busX: activeCard.x + activeCard.w + BUS_OFFSET,
       items: childMinis,
@@ -363,57 +370,142 @@ function svgHit(svg, d, attrs, className) {
   return path;
 }
 
-// Разветвление «родитель → колонка детей» с учётом препов. Дети без препа
-// получают отвод прямо с шины родителя (busX). Группа детей с общим препом —
-// один отвод в левый край блока препа, а от правого края блока — своя
-// короткая шина (chip.subX) с отводами к каждому ребёнку группы. Так видно,
-// что все эти продолжения идут через один и тот же мостик.
-// Отвод к каждому ребёнку получает хит-линию data-link-child (кнопки
-// управления связью), участки через преп — ещё и data-prep-id (тултип).
+// Разветвление «родитель → колонка детей» с учётом препов и формы связей.
+//
+// По умолчанию — общая шина родителя (busX): отводы к детям без препа и к
+// левому краю блоков препов. От правого края блока препа — короткая шина
+// группы (chip.subX) к её детям: линии продолжений сначала сходятся в преп
+// и уже одной линией идут к родителю.
+//
+// Связь с записью в o.pins (только полное дерево, см. treePins.js) рисуется
+// отдельно от общей шины: 'bus' — своя шина с изломом на ex от точки
+// выхода, 'curve' — плавная кривая через ручку. У каждой связи есть
+// хит-линия с data-link-key (кнопки связи, перетаскивание), участки через
+// преп несут data-prep-id (тултип).
 function drawFanOut(svg, o) {
+  const P = o.pins || {};
   const mid = it => it.y + it.h / 2;
+  const line = d => svgLine(svg, d, o.stroke, o.width, o.dash);
   const inChip = new Set();
   o.chips.forEach(ch => ch.members.forEach(id => inChip.add(id)));
-  const entries = [];
-  o.items.forEach(it => { if (!inChip.has(it.node.id)) entries.push({ x: it.x, y: mid(it), childId: it.node.id }); });
-  o.chips.forEach(ch => entries.push({ x: ch.x, y: mid(ch), chip: ch }));
-  if (entries.length === 0) return;
 
-  if (o.fromX !== o.busX) svgLine(svg, `M ${o.fromX} ${o.fromY} L ${o.busX} ${o.fromY}`, o.stroke, o.width, o.dash);
-  const ys = entries.map(e => e.y).concat(o.fromY);
-  const busD = `M ${o.busX} ${Math.min(...ys)} L ${o.busX} ${Math.max(...ys)}`;
-  svgLine(svg, busD, o.stroke, o.width, o.dash);
-  entries.forEach(e => {
-    const d = `M ${o.busX} ${e.y} L ${e.x} ${e.y}`;
-    svgLine(svg, d, o.stroke, o.width, o.dash);
-    if (e.chip) svgHit(svg, d, { 'data-prep-id': e.chip.prepId });
-    else svgHit(svg, d, { 'data-link-child': e.childId });
+  // Хит-линия связи + перетаскивание излома/ручки в полном дереве
+  const hit = (d, link, info) => {
+    const attrs = { 'data-link-key': link.key };
+    if (link.childId !== undefined) attrs['data-link-child'] = link.childId;
+    if (link.prepId) attrs['data-prep-id'] = link.prepId;
+    if (link.prepParent !== undefined) attrs['data-prep-parent'] = link.prepParent;
+    const h = svgHit(svg, d, attrs, o.draggable ? 'draggable' : '');
+    if (o.draggable && info) h.addEventListener('pointerdown', (e) => startLinkDrag(e, link.key, info));
+  };
+
+  // Связь со своей формой: from — точка выхода, to — точка входа
+  const drawCustom = (link, from, to) => {
+    const s = P[link.key];
+    if (s.shape === 'curve') {
+      const dx = Math.max(30, Math.abs(to.x - from.x) / 2);
+      // Середина кубической кривой смещается на 3/4 сдвига контрольных
+      // точек — поэтому сдвиг 4/3, чтобы кривая шла ровно через ручку.
+      const ox = s.hx * 4 / 3, oy = s.hy * 4 / 3;
+      const d = `M ${from.x} ${from.y} C ${from.x + dx + ox} ${from.y + oy}, ${to.x - dx + ox} ${to.y + oy}, ${to.x} ${to.y}`;
+      line(d);
+      hit(d, link, { shape: 'curve', hx: s.hx, hy: s.hy });
+      const hx = (from.x + to.x) / 2 + s.hx;
+      const hy = (from.y + to.y) / 2 + s.hy;
+      if (o.draggable) {
+        const handle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        handle.setAttribute('cx', hx);
+        handle.setAttribute('cy', hy);
+        handle.setAttribute('r', 5);
+        handle.setAttribute('class', 'curve-handle');
+        handle.setAttribute('data-link-key', link.key);
+        if (link.childId !== undefined) handle.setAttribute('data-link-child', link.childId);
+        handle.addEventListener('pointerdown', (e) => startLinkDrag(e, link.key, { shape: 'curve', hx: s.hx, hy: s.hy }));
+        svg.appendChild(handle);
+      }
+      if (o.layer && (s.hx || s.hy)) o.layer.appendChild(linkPinBadge(link.key, hx, hy - 22));
+    } else {
+      const ex = from.x + s.ex;
+      const d = `M ${from.x} ${from.y} L ${ex} ${from.y} L ${ex} ${to.y} L ${to.x} ${to.y}`;
+      line(d);
+      hit(d, link, { shape: 'bus', ex: s.ex });
+      if (o.layer) o.layer.appendChild(linkPinBadge(link.key, ex, Math.min(from.y, to.y) - 22));
+    }
+  };
+
+  // ---- от родителя: к детям без препа и к блокам препов ----
+  const from = { x: o.fromX, y: o.fromY };
+  const links = [];
+  o.items.forEach(it => {
+    if (!inChip.has(it.node.id)) links.push({ key: 'c:' + it.node.id, childId: it.node.id, to: { x: it.x, y: mid(it) } });
   });
+  o.chips.forEach(ch => links.push({
+    key: 'p:' + o.parentId + ':' + ch.prepId, prepId: ch.prepId, prepParent: o.parentId,
+    to: { x: ch.x, y: mid(ch) }
+  }));
+  const shared = links.filter(l => !P[l.key]);
+  if (shared.length) {
+    if (o.fromX !== o.busX) line(`M ${o.fromX} ${o.fromY} L ${o.busX} ${o.fromY}`);
+    const ys = shared.map(l => l.to.y).concat(o.fromY);
+    const busD = `M ${o.busX} ${Math.min(...ys)} L ${o.busX} ${Math.max(...ys)}`;
+    line(busD);
+    shared.forEach(l => {
+      const d = `M ${o.busX} ${l.to.y} L ${l.to.x} ${l.to.y}`;
+      line(d);
+      hit(d, l, { shape: 'bus', ex: o.busX - o.fromX });
+    });
+    // Общую шину полного дерева можно перетаскивать влево-вправо
+    if (o.busParentId !== undefined) {
+      const busHit = svgHit(svg, busD, { 'data-bus-parent': o.busParentId }, 'bus-hit');
+      busHit.addEventListener('pointerdown', (e) => startBusDrag(e, o.busParentId));
+    }
+  }
+  links.filter(l => P[l.key]).forEach(l => drawCustom(l, from, l.to));
 
+  // ---- от блока препа к детям его группы ----
   const byId = new Map(o.items.map(it => [it.node.id, it]));
   o.chips.forEach(ch => {
-    const cy = mid(ch);
-    const subX = ch.subX;
-    const members = ch.members.map(id => byId.get(id)).filter(Boolean);
-    const mys = members.map(mid).concat(cy);
-    const outD = `M ${ch.x + ch.w} ${cy} L ${subX} ${cy}`;
-    const subD = `M ${subX} ${Math.min(...mys)} L ${subX} ${Math.max(...mys)}`;
-    svgLine(svg, outD, o.stroke, o.width, o.dash);
-    svgLine(svg, subD, o.stroke, o.width, o.dash);
-    svgHit(svg, outD, { 'data-prep-id': ch.prepId });
-    svgHit(svg, subD, { 'data-prep-id': ch.prepId });
-    members.forEach(m => {
-      const d = `M ${subX} ${mid(m)} L ${m.x} ${mid(m)}`;
-      svgLine(svg, d, o.stroke, o.width, o.dash);
-      svgHit(svg, d, { 'data-prep-id': ch.prepId, 'data-link-child': m.node.id });
-    });
+    const cFrom = { x: ch.x + ch.w, y: mid(ch) };
+    const members = ch.members.map(id => byId.get(id)).filter(Boolean).map(m => ({
+      key: 'c:' + m.node.id, childId: m.node.id, prepId: ch.prepId, to: { x: m.x, y: mid(m) }
+    }));
+    const plain = members.filter(m => !P[m.key]);
+    if (plain.length) {
+      const minX = Math.min(...plain.map(m => m.to.x));
+      // Если блок закрепили почти вплотную к детям (или правее), короткой
+      // шине не хватает места — тогда к каждому ребёнку идёт прямая линия.
+      if (minX - cFrom.x >= 16) {
+        const subX = Math.max(cFrom.x + 6, Math.min(ch.subX, minX - 6));
+        const ys = plain.map(m => m.to.y).concat(cFrom.y);
+        const outD = `M ${cFrom.x} ${cFrom.y} L ${subX} ${cFrom.y}`;
+        const subD = `M ${subX} ${Math.min(...ys)} L ${subX} ${Math.max(...ys)}`;
+        line(outD); line(subD);
+        svgHit(svg, outD, { 'data-prep-id': ch.prepId });
+        svgHit(svg, subD, { 'data-prep-id': ch.prepId });
+        plain.forEach(m => {
+          const d = `M ${subX} ${m.to.y} L ${m.to.x} ${m.to.y}`;
+          line(d);
+          hit(d, m, { shape: 'bus', ex: subX - cFrom.x });
+        });
+      } else {
+        plain.forEach(m => {
+          const d = `M ${cFrom.x} ${cFrom.y} L ${m.to.x} ${m.to.y}`;
+          line(d);
+          hit(d, m, { shape: 'bus', ex: Math.max(6, (m.to.x - cFrom.x) / 2) });
+        });
+      }
+    }
+    members.filter(m => P[m.key]).forEach(m => drawCustom(m, cFrom, m.to));
   });
+}
 
-  // Шину полного дерева можно перетаскивать влево-вправо (закрепляется)
-  if (o.busParentId !== undefined) {
-    const hit = svgHit(svg, busD, { 'data-bus-parent': o.busParentId }, 'bus-hit');
-    hit.addEventListener('pointerdown', (e) => startBusDrag(e, o.busParentId));
-  }
+// 📌 у связи со своей формой — вернуть её на общую шину
+function linkPinBadge(key, x, y) {
+  const badge = renderPinBadge('Сбросить форму связи: вернуть на общую шину', () => resetLink(key));
+  badge.classList.add('link-pin');
+  badge.style.left = (x - 10) + 'px';
+  badge.style.top = y + 'px';
+  return badge;
 }
 
 // Маленькая кнопка «📌» у закреплённого элемента — открепить
@@ -491,22 +583,28 @@ function renderPrepChip(chip) {
 }
 
 /* ===== Кнопки управления связью =====
-   При наведении на линию родитель → ребёнок рядом с курсором появляется
-   плашка #linkControls: «‖ Преп» (поставить), а если преп есть — «⇄ Сменить»
-   и «✕ Убрать». Плашка живёт в #treeInner (вне #nodesLayer), поэтому
-   переживает перерисовку; прячется с задержкой, чтобы до неё можно было
-   довести мышь. */
+   При наведении на линию рядом с курсором появляется плашка #linkControls:
+   - на связи к ребёнку: «‖ Добавить преп» или «⇄ Сменить преп» / «✕ Убрать преп»;
+   - на линии от родителя к блоку препа: «✕ Убрать преп» (со всей группы);
+   - в полном дереве ещё форма связи: «⌒ Изгиб» / «┐ Шина» и «↺ Авто».
+   Плашка живёт в #treeInner (вне #nodesLayer), поэтому переживает
+   перерисовку; прячется с задержкой, чтобы до неё можно было довести мышь. */
 let linkControlsTimer = 0;
 
-function showLinkControls(childId, clientX, clientY) {
-  const node = state.nodes[childId];
+function showLinkControls(hitEl, clientX, clientY) {
   const box = document.getElementById('linkControls');
-  if (!node || node.parentId === null || !box) return;
+  if (!box || !hitEl) return;
+  const key = hitEl.getAttribute('data-link-key');
+  if (!key) return;
   clearTimeout(linkControlsTimer);
-  if (box.dataset.childId === String(childId) && !box.classList.contains('hidden')) return;
-  box.dataset.childId = childId;
+  if (box.dataset.linkKey === key && !box.classList.contains('hidden')) return;
+  const childAttr = hitEl.getAttribute('data-link-child');
+  const childId = childAttr !== null ? Number(childAttr) : null;
+  const prepParentAttr = hitEl.getAttribute('data-prep-parent');
+  const prepIdAttr = hitEl.getAttribute('data-prep-id');
+
+  box.dataset.linkKey = key;
   box.innerHTML = '';
-  const prep = node.prepId ? getPrep(node.prepId) : null;
   const btn = (text, title, onClick, cls) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -516,14 +614,35 @@ function showLinkControls(childId, clientX, clientY) {
     b.onclick = (e) => { e.stopPropagation(); hideLinkControls(true); onClick(); };
     return b;
   };
-  if (prep) {
-    box.append(
-      btn('⇄ Сменить преп', `Сейчас: ${prep.name}`, () => openNodePrepPicker(childId)),
-      btn('✕ Убрать преп', 'Убрать преп с этой связи', () => setNodePrep(childId, null), 'danger')
-    );
-  } else {
-    box.append(btn('‖ Добавить преп', 'Поставить преп на эту связь', () => openNodePrepPicker(childId)));
+
+  if (childId !== null && state.nodes[childId] && state.nodes[childId].parentId !== null) {
+    const node = state.nodes[childId];
+    const prep = node.prepId ? getPrep(node.prepId) : null;
+    if (prep) {
+      box.append(
+        btn('⇄ Сменить преп', `Сейчас: ${prep.name}`, () => openNodePrepPicker(childId)),
+        btn('✕ Убрать преп', 'Убрать преп с этой связи', () => setNodePrep(childId, null), 'danger')
+      );
+    } else {
+      box.append(btn('‖ Добавить преп', 'Поставить преп на эту связь', () => openNodePrepPicker(childId)));
+    }
+  } else if (prepParentAttr !== null && prepIdAttr !== null) {
+    const parentId = Number(prepParentAttr);
+    const prepId = Number(prepIdAttr);
+    box.append(btn('✕ Убрать преп', 'Убрать преп со всех связей этой группы',
+      () => removePrepFromLink(parentId, prepId), 'danger'));
   }
+
+  if (treeDragEnabled()) {
+    const s = linkSetting(key);
+    const curved = s && s.shape === 'curve';
+    box.append(btn(curved ? '┐ Шина' : '⌒ Изгиб',
+      curved ? 'Вернуть связи форму шины' : 'Сделать связь плавной кривой (тяните за ручку)',
+      () => toggleLinkShape(key)));
+    if (s) box.append(btn('↺ Авто', 'Вернуть связь на общую шину', () => resetLink(key)));
+  }
+  if (!box.children.length) return;
+
   const inner = document.getElementById('treeInner').getBoundingClientRect();
   box.style.left = (clientX - inner.left + 8) + 'px';
   box.style.top = (clientY - inner.top - 34) + 'px';
@@ -534,7 +653,7 @@ function hideLinkControls(now) {
   const box = document.getElementById('linkControls');
   if (!box) return;
   clearTimeout(linkControlsTimer);
-  const hide = () => { box.classList.add('hidden'); box.dataset.childId = ''; };
+  const hide = () => { box.classList.add('hidden'); box.dataset.linkKey = ''; };
   if (now) hide();
   else linkControlsTimer = setTimeout(hide, 350);
 }
@@ -544,11 +663,11 @@ function initLinkControls() {
   const box = document.getElementById('linkControls');
   wrap.addEventListener('mouseover', (e) => {
     if (treeDrag && treeDrag.moved) return;
-    const hit = e.target.closest && e.target.closest('[data-link-child]');
-    if (hit) showLinkControls(Number(hit.getAttribute('data-link-child')), e.clientX, e.clientY);
+    const hit = e.target.closest && e.target.closest('[data-link-key]');
+    if (hit) showLinkControls(hit, e.clientX, e.clientY);
   });
   wrap.addEventListener('mouseout', (e) => {
-    if (e.target.closest && e.target.closest('[data-link-child]')) hideLinkControls(false);
+    if (e.target.closest && e.target.closest('[data-link-key]')) hideLinkControls(false);
   });
   box.addEventListener('mouseenter', () => clearTimeout(linkControlsTimer));
   box.addEventListener('mouseleave', () => hideLinkControls(false));
@@ -613,6 +732,7 @@ function renderSpineCard(c) {
   const node = c.node;
   const el = document.createElement('div');
   el.className = 'node-card on-path';
+  applyFolderHighlight(el, node.id, treeHighlightIds);
   el.dataset.nodeId = node.id;
   if (node.parentId === null) el.classList.add('root-node');
   if (isSquareEnd(node.beat, node.length)) el.classList.add('square-end');
@@ -661,6 +781,7 @@ function renderMiniCard(m) {
 
   const el = document.createElement('div');
   el.className = 'mini-card ' + (m.kind === 'sibling' ? 'sibling' : 'child');
+  applyFolderHighlight(el, m.node.id, treeHighlightIds);
   el.dataset.nodeId = m.node.id;
   el.style.left = m.x + 'px';
   el.style.top = m.y + 'px';
@@ -803,6 +924,10 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
       fromX: c.x + c.w, fromY: c.y + c.h / 2,
       busX: buses[c.node.id] ? buses[c.node.id].x : c.x + c.w + BUS_OFFSET,
       busParentId: c.node.id,
+      parentId: c.node.id,
+      pins: (state.treePins || {}).links,
+      draggable: true,
+      layer: nodesLayer,
       items: children.map(ch => posMap.get(ch.id)).filter(Boolean),
       chips: preps.filter(p => p.parentId === c.node.id),
       stroke: '#3498db', width: 2
@@ -834,6 +959,7 @@ function renderFullTreeNode(c) {
   const node = c.node;
   const el = document.createElement('div');
   el.className = 'node-card';
+  applyFolderHighlight(el, node.id, treeHighlightIds);
   el.dataset.nodeId = node.id;
   if (node.parentId === null) el.classList.add('root-node');
   if (isSquareEnd(node.beat, node.length)) el.classList.add('square-end');

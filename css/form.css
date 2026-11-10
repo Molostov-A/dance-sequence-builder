@@ -24,6 +24,14 @@
   opacity: 0.35; cursor: not-allowed;
 }
 #formLayer .or { text-align: center; font-size: 11px; color: #999; }
+#formLayer .mov-select[size] { padding: 4px; }
+#formLayer .mov-select option { padding: 4px 6px; }
+#formLayer .mov-search-create {
+  align-self: flex-start; background: none; border: none; padding: 2px 0;
+  color: #2980b9; font-size: 12px; cursor: pointer; text-align: left;
+}
+#formLayer .mov-search-create:hover { text-decoration: underline; }
+#formLayer .mov-search-create.hidden { display: none; }
 
 .prep-form-row .prep-form-box {
   display: flex;

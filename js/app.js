@@ -167,6 +167,8 @@ document.getElementById('mentionModal').addEventListener('click', (e) => {
 });
 document.getElementById('btnViewPath').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('path'); });
 document.getElementById('btnViewAll').addEventListener('click', (e) => { e.stopPropagation(); toggleTreeView('all'); });
+document.getElementById('treeHighlightFolder').addEventListener('change', (e) => setTreeHighlightFolder(e.target.value));
+document.getElementById('treeHighlightColor').addEventListener('input', (e) => setTreeHighlightColor(e.target.value));
 document.getElementById('btnTogglePreps').addEventListener('click', (e) => { e.stopPropagation(); toggleAllPrepLinks(); });
 document.getElementById('btnResetPins').addEventListener('click', (e) => { e.stopPropagation(); resetTreePins(); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });

@@ -112,7 +112,7 @@
 .combo-folder-body > .combo-list { margin: 0; }
 .combo-folder-empty { font-size: 12px; color: #95a5a6; padding: 4px 0; }
 .combo-folder-loose { border-style: dashed; }
-.combo-folder-loose .combo-folder-name { cursor: default; font-weight: 500; color: #7f8c8d; }
+.combo-folder-loose .combo-folder-name { font-weight: 500; color: #7f8c8d; }
 
 .combo-folders-modal { width: 420px; max-height: 85vh; }
 .combo-folders-list {

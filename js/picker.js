@@ -16,6 +16,18 @@
    ========================================================= */
 let libraryPickerState = null;
 
+/* Поиск по словам: каждое слово запроса ищется в тексте отдельно, порядок
+   не важен, регистр и ё/е не различаются. «пов парт» найдёт «Поворот партнёрши». */
+function searchNormalize(text) {
+  return (text || '').toLowerCase().replace(/ё/g, 'е');
+}
+function searchWordsMatch(text, query) {
+  const words = searchNormalize(query).split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const hay = searchNormalize(text);
+  return words.every(w => hay.includes(w));
+}
+
 function openLibraryPicker(opts) {
   libraryPickerState = opts;
   document.getElementById('libraryPickerTitle').textContent = opts.title || 'Выбрать';
@@ -36,10 +48,8 @@ function closeLibraryPicker() {
 
 function libraryPickerMatches() {
   if (!libraryPickerState) return [];
-  const q = document.getElementById('libraryPickerSearch').value.trim().toLowerCase();
-  const list = libraryPickerState.items.filter(it =>
-    !q || it.text.toLowerCase().includes(q) || (it.sub || '').toLowerCase().includes(q)
-  );
+  const q = document.getElementById('libraryPickerSearch').value.trim();
+  const list = libraryPickerState.items.filter(it => searchWordsMatch(it.text + ' ' + (it.sub || ''), q));
   if (libraryPickerState.sort !== false) {
     list.sort((a, b) => a.text.localeCompare(b.text, undefined, { sensitivity: 'base', numeric: true }));
   }

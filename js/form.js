@@ -112,16 +112,73 @@ function renderFormContent() {
   row1.className = 'row';
   const label1 = document.createElement('label');
   label1.textContent = 'Из библиотеки:';
+  // Строка поиска над списком: каждое слово ищется отдельно (searchWordsMatch).
+  // Пока что-то введено, список раскрыт и показывает только совпадения,
+  // первое совпадение выбрано — его можно сразу подтвердить кнопкой OK.
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.className = 'mov-search';
+  search.placeholder = 'Поиск: начните вводить название';
+  search.autocomplete = 'off';
+  search.spellcheck = false;
   const select = document.createElement('select');
   select.className = 'mov-select';
-  const emptyOpt = document.createElement('option');
-  emptyOpt.value = ''; emptyOpt.textContent = '— выбрать —';
-  select.appendChild(emptyOpt);
-  state.movements.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.id; opt.textContent = m.name;
-    select.appendChild(opt);
-  });
+  const noMatch = document.createElement('button');
+  noMatch.type = 'button';
+  noMatch.className = 'mov-search-create hidden';
+  noMatch.onclick = () => {
+    const input = formNewInput();
+    if (!input) return;
+    setMentionText(input, search.value.trim());
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    focusMentionEditor(input, false);
+  };
+  const fillOptions = () => {
+    const query = search.value.trim();
+    const keep = select.value;
+    const list = state.movements
+      .filter(m => searchWordsMatch(m.name, query))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true }));
+    select.innerHTML = '';
+    if (!query) {
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = ''; emptyOpt.textContent = '— выбрать —';
+      select.appendChild(emptyOpt);
+    }
+    list.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id; opt.textContent = m.name;
+      select.appendChild(opt);
+    });
+    if (query && list.length === 0) {
+      const none = document.createElement('option');
+      none.value = ''; none.disabled = true; none.textContent = 'Ничего не найдено';
+      select.appendChild(none);
+    }
+    select.size = query ? Math.min(6, Math.max(2, list.length || 1)) : 0;
+    if (keep && list.some(m => String(m.id) === keep)) select.value = keep;
+    else if (query && list.length) select.value = String(list[0].id);
+    else select.value = '';
+    noMatch.classList.toggle('hidden', !(query && list.length === 0));
+    noMatch.textContent = `+ Создать «${query}» как новое движение`;
+  };
+  fillOptions();
+  search.oninput = () => {
+    fillOptions();
+    updateFormEditButtons();
+    positionForm();
+  };
+  search.onkeydown = (e) => {
+    if (e.isComposing) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); select.focus(); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (select.value) {
+        const len = document.querySelector('#formLayer .length-select');
+        if (len) len.focus();
+      } else if (!noMatch.classList.contains('hidden')) noMatch.click();
+    }
+  };
   const selectRow = document.createElement('div');
   selectRow.className = 'mov-select-row';
   const editSelectedBtn = createFormEditButton('form-edit-selected', 'Редактировать выбранное движение');
@@ -144,7 +201,7 @@ function renderFormContent() {
     if (select.value) resetFormDraft();
     updateFormEditButtons();
   };
-  row1.append(label1, selectRow);
+  row1.append(label1, search, selectRow, noMatch);
   frag.appendChild(row1);
 
   const or = document.createElement('div');
@@ -278,6 +335,14 @@ function renderFormContent() {
 }
 function formNewInput() { return document.querySelector('#formLayer .new-mov-input'); }
 function formMovSelect() { return document.querySelector('#formLayer .mov-select'); }
+// После правки движения в модалке обновить его подпись в списке формы
+function syncFormMovementOption(movementId) {
+  const select = formMovSelect();
+  const mov = getMovement(movementId);
+  if (!select || !mov) return;
+  const opt = Array.from(select.options).find(o => o.value === String(movementId));
+  if (opt) opt.textContent = mov.name;
+}
 function resetFormDraft() {
   const input = formNewInput();
   if (input) setMentionText(input, '');

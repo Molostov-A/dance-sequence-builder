@@ -5,7 +5,13 @@
             левого верхнего угла РОДИТЕЛЯ (у корня — относительно холста);
      buses: { [parentId]: { dx } } — вертикальная шина родителя: отступ от его
             правого края (по умолчанию BUS_OFFSET);
-     preps: { ['parentId:prepId']: { dx, dy } } — блок препа относительно родителя.
+     preps: { ['parentId:prepId']: { dx, dy } } — блок препа относительно родителя;
+     links: { [linkKey]: { shape: 'bus', ex } | { shape: 'curve', hx, hy } } —
+            форма отдельной связи. linkKey: 'c:<ребёнок>' (линия к ребёнку от
+            родителя или от блока препа) или 'p:<родитель>:<преп>' (линия от
+            родителя к блоку препа). 'bus' — своя шина: излом на ex от точки
+            выхода; 'curve' — плавная кривая через ручку, смещённую на (hx, hy)
+            от середины линии. Без записи связь идёт по общей шине родителя.
    Закрепление ставится само при перетаскивании; открепление (📌) возвращает
    автоматическое положение. Незакреплённые элементы едут вместе с родителем,
    поэтому перенос карточки переносит и всю её ветку.
@@ -16,14 +22,34 @@
 function prepLinkKey(parentId, prepId) { return parentId + ':' + prepId; }
 
 function treePins() {
-  if (!state.treePins) state.treePins = { nodes: {}, buses: {}, preps: {} };
+  if (!state.treePins) state.treePins = { nodes: {}, buses: {}, preps: {}, links: {} };
+  if (!state.treePins.links) state.treePins.links = {};
   return state.treePins;
 }
 
 function hasAnyTreePins() {
   const p = state.treePins;
   return !!p && (Object.keys(p.nodes || {}).length + Object.keys(p.buses || {}).length
-    + Object.keys(p.preps || {}).length) > 0;
+    + Object.keys(p.preps || {}).length + Object.keys(p.links || {}).length) > 0;
+}
+
+function linkSetting(key) {
+  return ((state.treePins || {}).links || {})[key] || null;
+}
+
+// Переключить форму связи: шина ↔ изгиб. Новый изгиб — плавная кривая
+// через середину линии; дальше её можно тянуть за ручку.
+function toggleLinkShape(key) {
+  const links = treePins().links;
+  const cur = links[key];
+  if (cur && cur.shape === 'curve') delete links[key];
+  else links[key] = { shape: 'curve', hx: 0, hy: 0 };
+  saveState(); renderTree();
+}
+
+function resetLink(key) {
+  delete treePins().links[key];
+  saveState(); renderTree();
 }
 
 function unpinNode(id) { delete treePins().nodes[id]; saveState(); renderTree(); }
@@ -33,7 +59,7 @@ function unpinPrep(key) { delete treePins().preps[key]; saveState(); renderTree(
 function resetTreePins() {
   if (!hasAnyTreePins()) return;
   if (!confirm('Открепить все блоки и связи и вернуть автоматическую раскладку?')) return;
-  state.treePins = { nodes: {}, buses: {}, preps: {} };
+  state.treePins = { nodes: {}, buses: {}, preps: {}, links: {} };
   saveState(); renderTree();
 }
 
@@ -133,6 +159,11 @@ function onTreeDragMove(e) {
   const pins = treePins();
   if (treeDrag.kind === 'bus') {
     pins.buses[treeDrag.id] = { dx: Math.max(6, treeDrag.startDx + dx) };
+  } else if (treeDrag.kind === 'link-bus') {
+    // Своя шина связи: двигается только излом по горизонтали, форма остаётся шиной
+    treePins().links[treeDrag.id] = { shape: 'bus', ex: Math.max(6, treeDrag.startEx + dx) };
+  } else if (treeDrag.kind === 'link-curve') {
+    treePins().links[treeDrag.id] = { shape: 'curve', hx: treeDrag.startHx + dx, hy: treeDrag.startHy + dy };
   } else {
     const nx = Math.max(0, treeDrag.startX + dx);
     const ny = Math.max(0, treeDrag.startY + dy);
@@ -188,6 +219,16 @@ function startPrepDrag(e, chip) {
     kind: 'prep', id: prepLinkKey(chip.parentId, chip.prepId),
     startX: chip.x, startY: chip.y, baseX: parent.x, baseY: parent.y
   });
+}
+
+// info: { shape: 'bus', ex } — текущий излом от точки выхода,
+//       { shape: 'curve', hx, hy } — текущее смещение ручки.
+function startLinkDrag(e, key, info) {
+  if (info.shape === 'curve') {
+    startTreeDrag(e, { kind: 'link-curve', id: key, startHx: info.hx, startHy: info.hy });
+  } else {
+    startTreeDrag(e, { kind: 'link-bus', id: key, startEx: info.ex });
+  }
 }
 
 function startBusDrag(e, parentId) {
