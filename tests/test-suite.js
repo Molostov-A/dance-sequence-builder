@@ -610,6 +610,39 @@
     });
     setView('tree');
 
+    // --- Фильтры генератора ---
+    var st = genSequenceStats(
+      [{ movementId: 7 }, { movementId: 8 }, { movementId: 7 }, { movementId: 9 }],
+      new Set(['7>8>7'])
+    );
+    check('статистика связки: разнообразие и новые цепочки из трёх движений', function () {
+      return st.unique === 3 && st.steps === 4 && st.triples === 2 && st.newTriples === 1;
+    });
+    var mk = function (ids) { return ids.map(function (id, i) { return { movementId: id, beat: 1 + i * 4, length: 4 }; }); };
+    genSequences = [mk([901, 901, 902]), mk([901, 902, 903]), mk([903, 902, 901, 904]), mk([905, 906])];
+    genFilters = { diverse: false, novel: false };
+    setView('generator');
+    check('без фильтров показаны все сгенерированные связки с метками', function () {
+      return qa('#genTreeContainer .gen-seq').length === 4 && qa('#genTreeContainer .gen-badge').length === 8;
+    });
+    setGenFilter('diverse', true);
+    check('«Максимально разнообразные» оставляет связки без повторов', function () {
+      return genVisibleSequences().map(function (e) { return e.idx; }).join() === '2,1,3';
+    });
+    setGenFilter('diverse', false);
+    setGenFilter('novel', true);
+    check('«Новые сочетания» убирает связки без новых цепочек и сортирует по новизне', function () {
+      var v = genVisibleSequences().map(function (e) { return e.idx; });
+      // при равной новизне выше более разнообразная
+      return v.join() === '2,1,0' && q('.gen-filter-summary').textContent.indexOf('3 из 4') >= 0;
+    });
+    check('номер #N остаётся номером в полном списке', function () {
+      return q('#genTreeContainer .gen-seq .gen-seq-idx').textContent === '#3';
+    });
+    genFilters = { diverse: false, novel: false };
+    genSequences = [];
+    setView('tree');
+
     // --- Удаление препа ---
     deletePrep(prepId);
     check('удаление препа снимает его со всех линий', function () {

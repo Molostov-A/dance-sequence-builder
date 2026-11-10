@@ -172,6 +172,8 @@ document.getElementById('treeHighlightColor').addEventListener('input', (e) => s
 document.getElementById('btnTogglePreps').addEventListener('click', (e) => { e.stopPropagation(); toggleAllPrepLinks(); });
 document.getElementById('btnResetPins').addEventListener('click', (e) => { e.stopPropagation(); resetTreePins(); });
 document.getElementById('btnGenerate').addEventListener('click', () => { generateSequences(); renderGenerator(); });
+document.getElementById('genFilterDiverse').addEventListener('change', (e) => setGenFilter('diverse', e.target.checked));
+document.getElementById('genFilterNovel').addEventListener('change', (e) => setGenFilter('novel', e.target.checked));
 
 // Sidebar navigation
 const sidebarEl = document.getElementById('sidebar');

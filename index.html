@@ -119,6 +119,14 @@
     </div>
     <div class="view-body">
       <button class="btn gen-btn" id="btnGenerate">Сгенерировать</button>
+      <div class="gen-filters">
+        <label title="Связки с наибольшей долей разных движений: обычно без повторов">
+          <input type="checkbox" id="genFilterDiverse"> Максимально разнообразные
+        </label>
+        <label title="Есть цепочки из трёх движений подряд, которых нет в готовых комбинациях">
+          <input type="checkbox" id="genFilterNovel"> Новые сочетания движений
+        </label>
+      </div>
       <div id="genTreeContainer"></div>
       <div id="genCombosContainer"></div>
     </div>

@@ -2,6 +2,63 @@ const GEN_MAX_COMBOS = 1000;
 let genSequences = [];
 let genSelectedIdx = -1;
 
+/* ===== Фильтры сгенерированных связок =====
+   Как и результаты генерации, живут только в памяти модуля.
+   diverse — «максимально разнообразные»: доля разных движений в связке
+     (unique / шагов) равна наибольшей среди всех сгенерированных; обычно
+     это связки без повторов, а если таких нет — с наименьшим числом повторов.
+   novel — «новые сочетания»: генератор собирает связки из уже существующих
+     переходов «движение → движение», поэтому новизну считаем по цепочкам из
+     трёх движений подряд, которых нет ни в одной готовой комбинации.
+   При включённом фильтре список сортируется: больше новых цепочек, затем
+   больше разнообразие. Номер #N остаётся номером в полном списке. */
+let genFilters = { diverse: false, novel: false };
+
+function movementTriples(movementIds) {
+  const out = [];
+  for (let i = 0; i + 2 < movementIds.length; i++) {
+    out.push(movementIds[i] + '>' + movementIds[i + 1] + '>' + movementIds[i + 2]);
+  }
+  return out;
+}
+
+function existingMovementTriples() {
+  const set = new Set();
+  collectCombos().forEach(combo => {
+    movementTriples(combo.map(n => n.movementId)).forEach(t => set.add(t));
+  });
+  return set;
+}
+
+function genSequenceStats(seq, existingTriples) {
+  const ids = seq.map(n => n.movementId);
+  const unique = new Set(ids).size;
+  const triples = Array.from(new Set(movementTriples(ids)));
+  const newTriples = triples.filter(t => !existingTriples.has(t)).length;
+  return { steps: ids.length, unique, ratio: ids.length ? unique / ids.length : 0, triples: triples.length, newTriples };
+}
+
+// Видимый список: [{ seq, idx, stats }] с учётом фильтров и сортировки
+function genVisibleSequences() {
+  const existingTriples = existingMovementTriples();
+  let list = genSequences.map((seq, idx) => ({ seq, idx, stats: genSequenceStats(seq, existingTriples) }));
+  if (genFilters.diverse && list.length) {
+    const best = Math.max(...list.map(e => e.stats.ratio));
+    list = list.filter(e => e.stats.ratio === best);
+  }
+  if (genFilters.novel) list = list.filter(e => e.stats.newTriples > 0);
+  if (genFilters.diverse || genFilters.novel) {
+    list.sort((a, b) => (b.stats.newTriples - a.stats.newTriples)
+      || (b.stats.ratio - a.stats.ratio) || (a.idx - b.idx));
+  }
+  return list;
+}
+
+function setGenFilter(name, value) {
+  genFilters[name] = !!value;
+  renderGenerator();
+}
+
 function extractPatterns() {
   const patterns = {};
 
@@ -157,10 +214,25 @@ function renderGenTree() {
     return;
   }
 
+  const visible = genVisibleSequences();
+  const summary = document.createElement('div');
+  summary.className = 'gen-filter-summary';
+  summary.textContent = (genFilters.diverse || genFilters.novel)
+    ? `Показано ${visible.length} из ${genSequences.length}`
+    : `Всего ${genSequences.length}`;
+  container.appendChild(summary);
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'gen-tree-empty';
+    empty.textContent = 'Под фильтры не подходит ни одна связка.';
+    container.appendChild(empty);
+    return;
+  }
+
   const tree = document.createElement('div');
   tree.className = 'gen-tree';
 
-  genSequences.forEach((seq, idx) => {
+  visible.forEach(({ seq, idx, stats }) => {
     const row = document.createElement('div');
     row.className = 'gen-seq';
     if (idx === genSelectedIdx) row.classList.add('active');
@@ -169,6 +241,19 @@ function renderGenTree() {
     idxSpan.className = 'gen-seq-idx';
     idxSpan.textContent = '#' + (idx + 1);
     row.appendChild(idxSpan);
+
+    const badges = document.createElement('span');
+    badges.className = 'gen-seq-badges';
+    const diversity = document.createElement('span');
+    diversity.className = 'gen-badge' + (stats.unique === stats.steps ? ' good' : '');
+    diversity.textContent = `разных ${stats.unique}/${stats.steps}`;
+    diversity.title = 'Разных движений / всего шагов в связке';
+    const novelty = document.createElement('span');
+    novelty.className = 'gen-badge' + (stats.newTriples ? ' good' : '');
+    novelty.textContent = `новых сочетаний ${stats.newTriples}`;
+    novelty.title = 'Цепочек из трёх движений подряд, которых нет в готовых комбинациях';
+    badges.append(diversity, novelty);
+    row.appendChild(badges);
 
     seq.forEach((node, i) => {
       if (i > 0) {
