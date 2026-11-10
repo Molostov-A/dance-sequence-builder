@@ -1,6 +1,7 @@
 function render() {
   ensureActivePathValid();
   renderMovements();
+  renderPreps();
   renderRootsBar();
   renderBreadcrumb();
   renderTree();
@@ -48,12 +49,16 @@ document.getElementById('movementNameInput').addEventListener('keydown', (e) => 
   if (e.isComposing) return;
   if (e.key === 'Escape') { e.preventDefault(); closeMovementModal(); }
 });
-document.getElementById('replaceMovementSearch').addEventListener('input', renderReplaceMovementList);
-document.getElementById('replaceMovementModal').addEventListener('keydown', onReplaceMovementKeydown);
-document.getElementById('btnReplaceWithNew').addEventListener('click', replaceWithNewMovement);
-document.getElementById('btnCancelReplaceMovement').addEventListener('click', closeReplaceMovementModal);
-document.getElementById('replaceMovementModal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeReplaceMovementModal();
+document.getElementById('libraryPickerSearch').addEventListener('input', renderLibraryPickerList);
+document.getElementById('libraryPickerModal').addEventListener('keydown', onLibraryPickerKeydown);
+document.getElementById('btnLibraryPickerNew').addEventListener('click', libraryPickerCreate);
+document.getElementById('btnCancelLibraryPicker').addEventListener('click', closeLibraryPicker);
+document.getElementById('libraryPickerModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeLibraryPicker();
+});
+document.getElementById('btnAddPrep').addEventListener('click', addPrepFromInput);
+document.getElementById('newPrepInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addPrepFromInput();
 });
 document.getElementById('btnSaveComboVideo').addEventListener('click', saveComboVideo);
 document.getElementById('btnAddComboVideo').addEventListener('click', addComboVideoRow);

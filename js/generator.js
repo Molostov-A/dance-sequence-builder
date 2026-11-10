@@ -128,7 +128,7 @@ function expandSequenceToTree(idx) {
 
   const first = seq[0];
   const id = state.nextNodeId++;
-  state.nodes[id] = { id, movementId: first.movementId, parentId: null, beat: first.beat, length: first.length };
+  state.nodes[id] = { id, movementId: first.movementId, parentId: null, beat: first.beat, length: first.length, prepId: null };
   state.nodeOrder.push(id);
   state.roots.push(id);
 
@@ -136,7 +136,7 @@ function expandSequenceToTree(idx) {
   for (let i = 1; i < seq.length; i++) {
     const n = seq[i];
     const cid = state.nextNodeId++;
-    state.nodes[cid] = { id: cid, movementId: n.movementId, parentId, beat: n.beat, length: n.length };
+    state.nodes[cid] = { id: cid, movementId: n.movementId, parentId, beat: n.beat, length: n.length, prepId: null };
     state.nodeOrder.push(cid);
     parentId = cid;
   }

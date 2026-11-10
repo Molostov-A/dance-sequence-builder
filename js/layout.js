@@ -8,7 +8,43 @@
    3) Линия пути — от родителя к активному изломом СБОКУ (огибая братьев):
       от правого края родителя вправо → вниз → влево в правый край активного.
    4) Продолжения активного — справа от активного столбиком.
+   5) Препы — блоки на линиях. Преп хранится в ребёнке (node.prepId) и
+      стоит на линии родитель → ребёнок. Если у кого-то из детей колонки
+      есть преп, колонка детей отодвигается на PREP_COL, и в освободившемся
+      промежутке встаёт блок препа — по одному на группу детей с общим
+      препом (getChildrenSorted держит такие группы подряд). Блок
+      центрируется по вертикали на своей группе. На хребте преп встаёт
+      в промежуток между двумя крупными карточками, который тоже
+      расширяется на PREP_COL.
    ========================================================= */
+
+// Блоки препов для одной колонки детей. items — дети в порядке колонки
+// с итоговыми y/h; columnX — левый край колонки (крупной карточки).
+function prepChipsForColumn(parentId, items, columnX, kind) {
+  const chips = [];
+  let i = 0;
+  while (i < items.length) {
+    const prepId = items[i].node.prepId;
+    if (!prepId) { i++; continue; }
+    let j = i;
+    while (j + 1 < items.length && items[j + 1].node.prepId === prepId) j++;
+    const top = items[i].y + items[i].h / 2;
+    const bottom = items[j].y + items[j].h / 2;
+    const cy = (top + bottom) / 2;
+    chips.push({
+      kind, parentId, prepId,
+      x: columnX - PREP_GAP - PREP_W, y: cy - PREP_H / 2, w: PREP_W, h: PREP_H,
+      members: items.slice(i, j + 1).map(it => it.node.id)
+    });
+    i = j + 1;
+  }
+  return chips;
+}
+
+function hasPrepAmong(nodes) {
+  return nodes.some(n => n.prepId);
+}
+
 function computeLayout(overrides) {
   // overrides.activeCardH — реальная высота активной карточки (может быть
   // больше CARD_H из-за бейджа «квадрат» и кнопок).
@@ -21,10 +57,11 @@ function computeLayout(overrides) {
   const miniHFor = O.miniHFor || (() => MINI_H);
   const activeCardH = O.activeCardH || CARD_H;
   const activePath = (state.activePath || []).filter(id => state.nodes[id]);
-  if (activePath.length === 0) return { cards: [], minis: [], width: 0, height: 0 };
+  if (activePath.length === 0) return { cards: [], minis: [], preps: [], width: 0, height: 0 };
 
   const cards = [];  // крупные: {node, x, y, w, h, isActive}
   const minis = [];  // компактные: {node, x, y, w, h, kind, childCount}
+  const preps = [];  // блоки препов: {kind, parentId, prepId, x, y, w, h, members}
 
   const activeId = activePath[activePath.length - 1];
   const activeNode = state.nodes[activeId];
@@ -36,51 +73,71 @@ function computeLayout(overrides) {
   // Горизонтальное расположение, верхняя граница на Y = PAD
   const spineY = PAD;
 
+  let spineX = PAD;
   spineNodes.forEach((nodeId, i) => {
     const node = state.nodes[nodeId];
-    const x = PAD + i * (CARD_W + H_GAP);
-    cards.push({ node, x, y: spineY, w: CARD_W, h: hFor(nodeId), isActive: false });
+    // Преп на линии к этому узлу — промежуток перед ним шире на PREP_COL
+    if (i > 0 && node.prepId) spineX += PREP_COL;
+    cards.push({ node, x: spineX, y: spineY, w: CARD_W, h: hFor(nodeId), isActive: false });
+    spineX += CARD_W + H_GAP;
   });
+  for (let i = 1; i < cards.length; i++) {
+    const cur = cards[i];
+    if (!cur.node.prepId) continue;
+    const prev = cards[i - 1];
+    const gapLeft = prev.x + prev.w;
+    // Линия хребта идёт от середины prev к середине cur — блок сидит на её середине
+    const cy = (prev.y + prev.h / 2 + cur.y + cur.h / 2) / 2;
+    preps.push({
+      kind: 'spine', parentId: prev.node.id, prepId: cur.node.prepId,
+      x: gapLeft + (cur.x - gapLeft - PREP_W) / 2, y: cy - PREP_H / 2, w: PREP_W, h: PREP_H,
+      members: [cur.node.id]
+    });
+  }
 
   // ===== 2) СТЕК БРАТЬЕВ =====
   // Стек идёт правее родителя (последней карточки хребта) и выровнен по верху
   // хребта, чтобы дочерние блоки не наезжали на родительский.
   // Если активный — корень, родителя нет, показываем только активный.
   const lastSpineCard = cards[cards.length - 1];
+  const siblings = parentId === null ? [activeNode] : getChildrenSorted(parentId);
   const stackX = lastSpineCard
-    ? lastSpineCard.x + CARD_W + H_GAP_MINI
+    ? lastSpineCard.x + CARD_W + H_GAP_MINI + (hasPrepAmong(siblings) ? PREP_COL : 0)
     : PAD;
   const stackTopY = spineY;
 
   let stackMinis = [];    // компактные братья (выше и ниже активного)
   let activeCardPos = null;
+  const stackItems = [];  // все элементы стека по порядку — для блоков препов
 
   if (parentId === null) {
     // Активный — корень. Стек = только он, крупный.
     activeCardPos = { x: stackX, y: stackTopY, w: CARD_W, h: activeCardH, isActive: true, node: activeNode };
   } else {
-    // Все дети родителя, отсортированные по имени
-    const siblings = getChildrenSorted(parentId);
     let curY = stackTopY;
     siblings.forEach(sib => {
       if (sib.id === activeId) {
         // Активный — крупная карточка
         activeCardPos = { x: stackX, y: curY, w: CARD_W, h: activeCardH, isActive: true, node: activeNode };
+        stackItems.push(activeCardPos);
         curY += activeCardH + MINI_GAP;
       } else {
         // Компактная карточка
         const childCount = countAllDescendants(sib.id);
-        stackMinis.push({
+        const mini = {
           node: sib,
           x: stackX + (CARD_W - MINI_W) / 2, // центрируем по горизонтали относительно крупной карточки
           y: curY,
           w: MINI_W, h: miniHFor(sib.id),   // реальная высота (название переносится)
           kind: 'sibling',
           childCount
-        });
+        };
+        stackMinis.push(mini);
+        stackItems.push(mini);
         curY += miniHFor(sib.id) + MINI_GAP;
       }
     });
+    preps.push(...prepChipsForColumn(parentId, stackItems, stackX, 'sibling'));
   }
 
   cards.push(activeCardPos);
@@ -89,32 +146,32 @@ function computeLayout(overrides) {
   // ===== 3) ПРОДОЛЖЕНИЯ активного (если он не свёрнут) =====
   const children = getVisibleChildren(activeId);
   const activeRight = activeCardPos.x + activeCardPos.w;
-  const childX = activeRight + CHILD_H_GAP;
+  const childX = activeRight + CHILD_H_GAP + (hasPrepAmong(children) ? PREP_COL : 0);
   let childTopY = activeCardPos.y;
+  const childItems = [];
 
   children.forEach(ch => {
     const childCount = countAllDescendants(ch.id);
     const childH = miniHFor(ch.id);
-    minis.push({
+    const mini = {
       node: ch,
       x: childX,
       y: childTopY,
       w: MINI_W, h: childH,
       kind: 'child',
       childCount
-    });
+    };
+    minis.push(mini);
+    childItems.push(mini);
     childTopY += childH + MINI_GAP;
   });
+  preps.push(...prepChipsForColumn(activeId, childItems, childX, 'child'));
 
   // ===== Размеры =====
   let maxRight = 0, maxBottom = 0;
-  cards.forEach(c => {
+  cards.concat(minis, preps).forEach(c => {
     maxRight = Math.max(maxRight, c.x + c.w);
     maxBottom = Math.max(maxBottom, c.y + c.h);
-  });
-  minis.forEach(m => {
-    maxRight = Math.max(maxRight, m.x + m.w);
-    maxBottom = Math.max(maxBottom, m.y + m.h);
   });
 
   const width = maxRight + PAD;
@@ -123,6 +180,7 @@ function computeLayout(overrides) {
   return {
     cards,
     minis,
+    preps,
     spineNodes,
     stackX,
     activeCardPos,
@@ -156,7 +214,7 @@ function computeFullTreeLayout(overrides) {
   const miniHFor = O.miniHFor || (() => MINI_H);
 
   const cards = [];
-  const minis = [];
+  const preps = [];
   const onPath = new Set(state.activePath || []);
 
   function isOnPath(id) { return onPath.has(id); }
@@ -164,11 +222,11 @@ function computeFullTreeLayout(overrides) {
   function nodeH(id) { return isOnPath(id) ? hFor(id) : miniHFor(id); }
 
   // Рекурсивно вычисляет layout поддерева.
-  // Возвращает { elements, width, height }
-  // elements — массив {node, x, y, w, h, isRoot, isOnPath}
+  // Возвращает { elements, preps, width, height }
+  // elements — массив {node, x, y, w, h, isRoot, isOnPath}; elements[0] — сам узел
   function layoutSubtree(nodeId, x, y) {
     const node = state.nodes[nodeId];
-    if (!node) return { elements: [], width: 0, height: 0 };
+    if (!node) return { elements: [], preps: [], width: 0, height: 0 };
 
     // Свёрнутый узел раскладывается как лист: поддерево не занимает места.
     const children = getVisibleChildren(nodeId);
@@ -178,12 +236,13 @@ function computeFullTreeLayout(overrides) {
     if (children.length === 0) {
       return {
         elements: [{ node, x, y, w, h, isRoot: false, isOnPath: isOnPath(nodeId) }],
+        preps: [],
         width: w,
         height: h
       };
     }
 
-    const childX = x + w + LEVEL_H_GAP;
+    const childX = x + w + LEVEL_H_GAP + (hasPrepAmong(children) ? PREP_COL : 0);
     let childResults = [];
     let totalChildH = 0;
     children.forEach((ch, i) => {
@@ -198,14 +257,18 @@ function computeFullTreeLayout(overrides) {
 
     let maxChildRight = 0;
     childResults.forEach(r => {
-      maxChildRight = Math.max(maxChildRight, r.x + r.width);
+      maxChildRight = Math.max(maxChildRight, childX + r.width);
     });
     const subtreeW = Math.max(w, (maxChildRight - x));
 
     const elements = [{ node, x, y: parentY, w, h, isRoot: false, isOnPath: isOnPath(nodeId) }];
     childResults.forEach(r => elements.push(...r.elements));
 
-    return { elements, width: subtreeW, height: Math.max(h, childrenBlockH) };
+    const childItems = childResults.map(r => r.elements[0]);
+    const subPreps = prepChipsForColumn(nodeId, childItems, childX, 'full');
+    childResults.forEach(r => subPreps.push(...r.preps));
+
+    return { elements, preps: subPreps, width: subtreeW, height: Math.max(h, childrenBlockH) };
   }
 
   let curY = PAD;
@@ -216,6 +279,7 @@ function computeFullTreeLayout(overrides) {
       if (el.node.id === rootId) el.isRoot = true;
     });
     cards.push(...res.elements);
+    preps.push(...res.preps);
     curY += res.height;
     if (i < state.roots.length - 1) curY += ROOT_V_GAP;
   });
@@ -229,6 +293,7 @@ function computeFullTreeLayout(overrides) {
   return {
     cards,
     minis: [],
+    preps,
     width: maxRight + PAD,
     height: Math.max(maxBottom + PAD, 220)
   };

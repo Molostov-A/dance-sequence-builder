@@ -55,7 +55,7 @@ function exportCombos() {
         index: idx + 1, totalBeats, squares: totalBeats / 32,
         videos: getComboVideos(combo),
         description: getComboDescription(combo),
-        steps: combo.map(n => {
+        steps: combo.map((n, i) => {
           const mov = getMovement(n.movementId);
           const step = {
             movement: mov ? mov.name : '???',
@@ -67,13 +67,14 @@ function exportCombos() {
             label: formatBeatShort(n.beat, n.length),
             eighth: eighthNumber(n.beat)
           };
-          if (n.preparation && n.preparation.movementId) {
-            const pm = getMovement(n.preparation.movementId);
-            step.preparation = {
-              movementId: pm ? pm.id : n.preparation.movementId,
-              movement: pm ? pm.name : null,
-              lead: pm ? pm.lead : '',
-              follow: pm ? pm.follow : ''
+          // Преп линии, по которой пришли в этот шаг (см. comboStepPrep)
+          const prep = comboStepPrep(combo, i);
+          if (prep) {
+            step.prep = {
+              prepId: prep.id,
+              name: prep.name,
+              lead: prep.lead || '',
+              follow: prep.follow || ''
             };
           }
           return step;
@@ -111,7 +112,7 @@ function applyImportedJson(text) {
     if (!state.comboDescriptionSegments || typeof state.comboDescriptionSegments !== 'object') state.comboDescriptionSegments = {};
     if (!state.treeViewMode) state.treeViewMode = 'path';
     if (typeof state.navPinned !== 'boolean') state.navPinned = true;
-    normalizePreparations(state);
+    normalizePreps(state);
     normalizeCollapsedNodes(state);
     pruneComboVideos();
     pruneComboDescriptions();

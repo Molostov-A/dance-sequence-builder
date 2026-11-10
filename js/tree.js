@@ -107,7 +107,7 @@ function renderTree() {
     heightFor: id => cardHeights.get(id) || CARD_H,
     miniHFor: id => miniHeights.get(id) || MINI_H
   });
-  const { cards, minis, width, height } = layout;
+  const { cards, minis, preps, width, height } = layout;
   const w = Math.max(width, 300);
   const h = Math.max(height, 300);
 
@@ -128,6 +128,8 @@ function renderTree() {
   svg.setAttribute('height', h);
   svg.style.width = w + 'px';
   svg.style.height = h + 'px';
+  // Блоки препов фиксированной высоты — замерять не нужно, ставим сразу
+  preps.forEach(p => nodesLayer.appendChild(renderPrepChip(p)));
   nodesLayer.style.visibility = '';
 
   // ===== Merge selection mode =====
@@ -160,7 +162,8 @@ function renderTree() {
 
   // ===== Соединительные линии =====
 
-  // 1) Хребет: горизонтальные связи между крупными карточками (кроме активного)
+  // 1) Хребет: горизонтальные связи между крупными карточками (кроме активного).
+  //    Если на линии стоит преп, она разрывается блоком препа посередине.
   const spineCards = cards.filter(c => !c.isActive);
   for (let i = 1; i < spineCards.length; i++) {
     const prev = spineCards[i - 1];
@@ -169,93 +172,61 @@ function renderTree() {
     const y1 = prev.y + prev.h / 2;
     const x2 = cur.x;
     const y2 = cur.y + cur.h / 2;
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', '#3498db');
-    path.setAttribute('stroke-width', '2');
-    svg.appendChild(path);
+    const chip = preps.find(p => p.kind === 'spine' && p.members[0] === cur.node.id);
+    if (chip) {
+      const cy = chip.y + chip.h / 2;
+      svgLine(svg, `M ${x1} ${y1} L ${chip.x} ${cy}`, '#3498db', 2);
+      svgLine(svg, `M ${chip.x + chip.w} ${cy} L ${x2} ${y2}`, '#3498db', 2);
+    } else {
+      svgLine(svg, `M ${x1} ${y1} L ${x2} ${y2}`, '#3498db', 2);
+    }
   }
 
   const activeCard = cards.find(c => c.isActive);
   const lastSpine = spineCards[spineCards.length - 1];
   const siblingMinis = minis.filter(m => m.kind === 'sibling');
 
-  // 2) Линия пути: от правого края родителя вправо на общую шину,
-  //    затем по шине вниз/вверх и в ЛЕВЫЙ край активного.
-  // 3) Общая шина (серая, пунктир) — в зазоре между родителем и стеком,
-  //    с отводами к братьям активного. Шина в зазоре, поэтому отводы не
-  //    пересекают карточку родителя даже для братьев выше активного.
+  // 2) Общая шина (серая, пунктир) — в зазоре между родителем и стеком,
+  //    с отводами к братьям активного (и к блокам их препов). Шина в зазоре,
+  //    поэтому отводы не пересекают карточку родителя даже для братьев
+  //    выше активного.
+  // 3) Линия пути (синяя) поверх серой: от правого края родителя на шину,
+  //    по шине к активному (или к блоку его препа) и в ЛЕВЫЙ край активного.
   if (lastSpine && activeCard) {
     const parentRight = lastSpine.x + lastSpine.w;
     const parentMidY = lastSpine.y + lastSpine.h / 2;
     const trunkX = parentRight + H_GAP_MINI / 2;
     const activeLeft = activeCard.x;
     const activeMidY = activeCard.y + activeCard.h / 2;
+    const stackChips = preps.filter(p => p.kind === 'sibling');
 
-    const centers = siblingMinis.map(m => m.y + m.h / 2).concat(activeMidY);
-    const trunkTopY = Math.min(...centers);
-    const trunkBottomY = Math.max(...centers);
-
-    const trunk = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    trunk.setAttribute('d', `M ${trunkX} ${trunkTopY} L ${trunkX} ${trunkBottomY}`);
-    trunk.setAttribute('fill', 'none');
-    trunk.setAttribute('stroke', '#b8c4cf');
-    trunk.setAttribute('stroke-width', '1.2');
-    trunk.setAttribute('stroke-dasharray', '3 3');
-    svg.appendChild(trunk);
-
-    siblingMinis.forEach(m => {
-      const y = m.y + m.h / 2;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      line.setAttribute('d', `M ${trunkX} ${y} L ${m.x} ${y}`);
-      line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', '#b8c4cf');
-      line.setAttribute('stroke-width', '1.2');
-      line.setAttribute('stroke-dasharray', '3 3');
-      svg.appendChild(line);
+    drawFanOut(svg, {
+      fromX: trunkX, fromY: parentMidY, busX: trunkX,
+      items: siblingMinis.concat(activeCard),
+      chips: stackChips,
+      stroke: '#b8c4cf', width: 1.2, dash: '3 3'
     });
 
-    const d = `M ${parentRight} ${parentMidY} L ${trunkX} ${parentMidY} L ${trunkX} ${activeMidY} L ${activeLeft} ${activeMidY}`;
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', d);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', '#3498db');
-    path.setAttribute('stroke-width', '2');
-    svg.appendChild(path);
+    const chip = stackChips.find(p => p.members.includes(activeCard.node.id));
+    if (chip) {
+      const cy = chip.y + chip.h / 2;
+      const subX = chip.x + chip.w + PREP_GAP / 2;
+      svgLine(svg, `M ${parentRight} ${parentMidY} L ${trunkX} ${parentMidY} L ${trunkX} ${cy} L ${chip.x} ${cy}`, '#3498db', 2);
+      svgLine(svg, `M ${chip.x + chip.w} ${cy} L ${subX} ${cy} L ${subX} ${activeMidY} L ${activeLeft} ${activeMidY}`, '#3498db', 2);
+    } else {
+      svgLine(svg, `M ${parentRight} ${parentMidY} L ${trunkX} ${parentMidY} L ${trunkX} ${activeMidY} L ${activeLeft} ${activeMidY}`, '#3498db', 2);
+    }
   }
 
-  // 4) Линии продолжений активного — вертикальная шина + отводы
+  // 4) Линии продолжений активного — вертикальная шина + отводы (через препы)
   const childMinis = minis.filter(m => m.kind === 'child');
   if (childMinis.length > 0 && activeCard) {
-    const busX = activeCard.x + activeCard.w + BUS_OFFSET;
-    const yStart = activeCard.y + activeCard.h / 2;
-    const bus = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    bus.setAttribute('d', `M ${activeCard.x + activeCard.w} ${yStart} L ${busX} ${yStart}`);
-    bus.setAttribute('fill', 'none');
-    bus.setAttribute('stroke', '#7fbf7f');
-    bus.setAttribute('stroke-width', '1.8');
-    svg.appendChild(bus);
-
-    const yTop = childMinis[0].y + childMinis[0].h / 2;
-    const yBottom = childMinis[childMinis.length - 1].y + childMinis[childMinis.length - 1].h / 2;
-    const vBus = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const vTop = Math.min(yTop, yStart);
-    const vBot = Math.max(yBottom, yStart);
-    vBus.setAttribute('d', `M ${busX} ${vTop} L ${busX} ${vBot}`);
-    vBus.setAttribute('fill', 'none');
-    vBus.setAttribute('stroke', '#7fbf7f');
-    vBus.setAttribute('stroke-width', '1.8');
-    svg.appendChild(vBus);
-
-    childMinis.forEach(m => {
-      const y = m.y + m.h / 2;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      line.setAttribute('d', `M ${busX} ${y} L ${m.x} ${y}`);
-      line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', '#7fbf7f');
-      line.setAttribute('stroke-width', '1.5');
-      svg.appendChild(line);
+    drawFanOut(svg, {
+      fromX: activeCard.x + activeCard.w, fromY: activeCard.y + activeCard.h / 2,
+      busX: activeCard.x + activeCard.w + BUS_OFFSET,
+      items: childMinis,
+      chips: preps.filter(p => p.kind === 'child'),
+      stroke: '#7fbf7f', width: 1.8
     });
   }
 
@@ -358,48 +329,143 @@ function renderCollapseToggle(node, container) {
   };
   container.appendChild(btn);
 }
-function renderPreparationBlock(node, container) {
-  if (!node.preparation || !node.preparation.movementId) return;
-  const pm = getMovement(node.preparation.movementId);
-  if (!pm) return;
-  const block = document.createElement('div');
-  block.className = 'prep-block';
-  const label = document.createElement('div');
-  label.className = 'prep-label';
-  label.textContent = 'Подготовка';
-  const row = document.createElement('div');
-  row.className = 'prep-row';
-  const nameEl = document.createElement('span');
-  nameEl.className = 'prep-name';
-  renderRichText(nameSegmentsOf(pm), nameEl);
-  const notes = movementNotes(pm);
-  nameEl.title = notes ? `${pm.name}\n\n${notes}` : pm.name;
-  const editBtn = document.createElement('button');
-  editBtn.type = 'button';
-  editBtn.className = 'icon-btn prep-edit';
-  editBtn.title = 'Редактировать подготовку';
-  editBtn.textContent = '✎';
-  editBtn.onclick = (e) => {
-    e.stopPropagation();
-    openMovementModal({ movementId: pm.id });
-  };
-  const removeBtn = document.createElement('button');
-  removeBtn.type = 'button';
-  removeBtn.className = 'icon-btn prep-remove';
-  removeBtn.title = 'Убрать подготовку';
-  removeBtn.textContent = '✕';
-  removeBtn.onclick = (e) => {
-    e.stopPropagation();
-    if (!confirm('Убрать подготовку с этого блока?')) return;
-    node.preparation = null;
-    saveState();
-    render();
-  };
-  row.append(nameEl, editBtn, removeBtn);
-  block.append(label, row);
-  container.appendChild(block);
+/* ===== Линии и блоки препов ===== */
+function svgLine(svg, d, stroke, width, dash) {
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', stroke);
+  path.setAttribute('stroke-width', String(width));
+  if (dash) path.setAttribute('stroke-dasharray', dash);
+  svg.appendChild(path);
 }
 
+// Разветвление «родитель → колонка детей» с учётом препов. Дети без препа
+// получают отвод прямо с шины родителя (busX). Группа детей с общим препом —
+// один отвод в левый край блока препа, а от правого края блока — своя
+// короткая шина (subX, в зазоре PREP_GAP перед колонкой) с отводами к
+// каждому ребёнку группы. Так видно, что все эти продолжения идут через
+// один и тот же мостик.
+function drawFanOut(svg, o) {
+  const mid = it => it.y + it.h / 2;
+  const inChip = new Set();
+  o.chips.forEach(ch => ch.members.forEach(id => inChip.add(id)));
+  const entries = [];
+  o.items.forEach(it => { if (!inChip.has(it.node.id)) entries.push({ x: it.x, y: mid(it) }); });
+  o.chips.forEach(ch => entries.push({ x: ch.x, y: mid(ch) }));
+  if (entries.length === 0) return;
+
+  if (o.fromX !== o.busX) svgLine(svg, `M ${o.fromX} ${o.fromY} L ${o.busX} ${o.fromY}`, o.stroke, o.width, o.dash);
+  const ys = entries.map(e => e.y).concat(o.fromY);
+  svgLine(svg, `M ${o.busX} ${Math.min(...ys)} L ${o.busX} ${Math.max(...ys)}`, o.stroke, o.width, o.dash);
+  entries.forEach(e => svgLine(svg, `M ${o.busX} ${e.y} L ${e.x} ${e.y}`, o.stroke, o.width, o.dash));
+
+  const byId = new Map(o.items.map(it => [it.node.id, it]));
+  o.chips.forEach(ch => {
+    const cy = mid(ch);
+    const subX = ch.x + ch.w + PREP_GAP / 2;
+    const members = ch.members.map(id => byId.get(id)).filter(Boolean);
+    const mys = members.map(mid).concat(cy);
+    svgLine(svg, `M ${ch.x + ch.w} ${cy} L ${subX} ${cy}`, o.stroke, o.width, o.dash);
+    svgLine(svg, `M ${subX} ${Math.min(...mys)} L ${subX} ${Math.max(...mys)}`, o.stroke, o.width, o.dash);
+    members.forEach(m => svgLine(svg, `M ${subX} ${mid(m)} L ${m.x} ${mid(m)}`, o.stroke, o.width, o.dash));
+  });
+}
+
+// Блок препа на линии. Клик по блоку — редактирование препа,
+// «+» — новое продолжение за этим же препом (ещё одна вариация после мостика).
+function renderPrepChip(chip) {
+  const prep = getPrep(chip.prepId);
+  const parent = state.nodes[chip.parentId];
+  const el = document.createElement('div');
+  el.className = 'prep-chip';
+  el.style.left = chip.x + 'px';
+  el.style.top = chip.y + 'px';
+  el.style.width = chip.w + 'px';
+  el.style.height = chip.h + 'px';
+
+  const name = document.createElement('span');
+  name.className = 'prep-chip-name';
+  renderRichText(nameSegmentsOf(prep), name);
+  const notes = movementNotes(prep);
+  el.title = `Преп: ${prep ? prep.name : '???'}` + (notes ? `\n\n${notes}` : '') + '\n\nНажмите, чтобы редактировать';
+  el.onclick = (e) => {
+    e.stopPropagation();
+    if (prep) openMovementModal({ kind: 'prep', prepId: prep.id });
+  };
+  el.appendChild(name);
+
+  if (parent) {
+    const nextBeat = parent.beat + parent.length;
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'prep-chip-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Новое продолжение за этим препом';
+    addBtn.disabled = allowedLengths(nextBeat).length === 0;
+    addBtn.onclick = (e) => {
+      e.stopPropagation();
+      openForm({ parentId: parent.id, isRoot: false, beat: nextBeat, prepId: chip.prepId });
+    };
+    el.appendChild(addBtn);
+  }
+  return el;
+}
+
+// Кнопки управления активной карточкой — общие для обоих режимов дерева.
+function renderCardActions(node) {
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+  const button = (text, title, onClick, className) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn' + (className ? ' ' + className : '');
+    btn.title = title;
+    btn.textContent = text;
+    if (onClick) btn.onclick = (e) => { e.stopPropagation(); onClick(); };
+    else btn.disabled = true;
+    return btn;
+  };
+
+  const replaceBtn = button('⇄', 'Заменить движение', () => replaceMovement(node.id));
+
+  const nextBeat = node.beat + node.length;
+  const canContinue = allowedLengths(nextBeat).length > 0;
+  const addBtn = button('+', canContinue ? 'Продолжить' : 'Нельзя начать',
+    canContinue ? () => openForm({ parentId: node.id, isRoot: false, beat: nextBeat }) : null);
+
+  const isRoot = node.parentId === null;
+  const prep = node.prepId ? getPrep(node.prepId) : null;
+  const prepBtn = button('‖',
+    isRoot ? 'У стартового движения нет входящей линии для препа'
+      : (prep ? `Преп на входящей линии: ${prep.name}` : 'Поставить преп на входящую линию'),
+    isRoot ? null : () => openNodePrepPicker(node.id),
+    prep ? 'prep-active' : '');
+
+  const existingMerge = state.merges.find(m => m.from === node.id);
+  let mergeBtn;
+  if (existingMerge) {
+    mergeBtn = button('↩', 'Отменить подключение', () => removeMerge(node.id), 'merge-active');
+  } else {
+    const targets = nextBeat <= 32 ? findMergeTargets(node.id) : [];
+    mergeBtn = targets.length === 0
+      ? button('↩', 'Нет подходящих узлов', null)
+      : button('↩', 'Подключиться', () => { mergeSelectFrom = node.id; renderTree(); });
+  }
+
+  const hasParentTargets = state.nodeOrder.some(id => canReparent(node.id, id));
+  const parentBtn = button('⤴', hasParentTargets ? 'Сменить родителя' : 'Сменить родителя: нет подходящих узлов',
+    hasParentTargets ? () => openChangeParentPicker(node.id) : null);
+  const hasAdoptCandidates = state.nodeOrder.some(id => canReparent(id, node.id));
+  const adoptBtn = button('⤵', hasAdoptCandidates ? 'Подключить другой узел продолжением' : 'Подключить продолжение: нет подходящих узлов',
+    hasAdoptCandidates ? () => openAdoptChildPicker(node.id) : null);
+
+  const combosBtn = button('≡', 'Показать комбинации с этим движением', () => showCombosForNode(node.id));
+  const delBtn = button('✕', 'Удалить', () => deleteNode(node.id), 'danger');
+
+  actions.append(replaceBtn, addBtn, prepBtn, mergeBtn, parentBtn, adoptBtn, combosBtn, delBtn);
+  return actions;
+}
 function renderSpineCard(c) {
   const node = c.node;
   const el = document.createElement('div');
@@ -437,62 +503,10 @@ function renderSpineCard(c) {
   }
 
   el.append(titleRow, badge);
-  renderPreparationBlock(node, el);
   renderCollapseToggle(node, el);
 
   if (c.isActive) {
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-
-    const replaceBtn = document.createElement('button');
-    replaceBtn.className = 'icon-btn'; replaceBtn.title = 'Заменить'; replaceBtn.textContent = '⇄';
-    replaceBtn.onclick = (e) => { e.stopPropagation(); replaceMovement(node.id); };
-
-    const addBtn = document.createElement('button');
-    addBtn.className = 'icon-btn'; addBtn.title = 'Продолжить'; addBtn.textContent = '+';
-    const nextBeat = node.beat + node.length;
-    if (allowedLengths(nextBeat).length === 0) {
-      addBtn.disabled = true; addBtn.title = 'Нельзя начать';
-    } else {
-      addBtn.onclick = (e) => {
-        e.stopPropagation();
-        openForm({ parentId: node.id, isRoot: false, beat: nextBeat });
-      };
-    }
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
-    delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
-
-    const prepBtn = document.createElement('button');
-    prepBtn.className = 'icon-btn' + (node.preparation && node.preparation.movementId ? ' prep-active' : '');
-    prepBtn.title = 'Подготовка (параллельное движение)';
-    prepBtn.textContent = '‖';
-    prepBtn.onclick = (e) => { e.stopPropagation(); openPrepPicker(node.id); };
-
-    const existingMerge = state.merges.find(m => m.from === node.id);
-    const mergeBtn = document.createElement('button');
-    mergeBtn.className = 'icon-btn' + (existingMerge ? ' merge-active' : '');
-    mergeBtn.title = existingMerge ? 'Отменить подключение' : 'Подключиться';
-    mergeBtn.textContent = '↩';
-    if (existingMerge) {
-      mergeBtn.onclick = (e) => { e.stopPropagation(); removeMerge(node.id); };
-    } else {
-      const nextB = node.beat + node.length;
-      const targets = nextB <= 32 ? findMergeTargets(node.id) : [];
-      if (targets.length === 0) {
-        mergeBtn.disabled = true; mergeBtn.title = 'Нет подходящих узлов';
-      } else {
-        mergeBtn.onclick = (e) => {
-          e.stopPropagation();
-          mergeSelectFrom = node.id;
-          renderTree();
-        };
-      }
-    }
-
-    actions.append(replaceBtn, addBtn, mergeBtn, prepBtn, delBtn);
-    el.appendChild(actions);
+    el.appendChild(renderCardActions(node));
   }
 
   return el;
@@ -571,7 +585,7 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
     heightFor: id => cardHeights.get(id) || CARD_H,
     miniHFor: id => cardHeights.get(id) || MINI_H
   });
-  const { cards, width, height } = layout;
+  const { cards, preps, width, height } = layout;
   const w = Math.max(width, 300);
   const h = Math.max(height, 300);
 
@@ -587,6 +601,7 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   svg.setAttribute('height', h);
   svg.style.width = w + 'px';
   svg.style.height = h + 'px';
+  preps.forEach(p => nodesLayer.appendChild(renderPrepChip(p)));
   nodesLayer.style.visibility = '';
 
   // Merge selection mode in full tree
@@ -621,49 +636,16 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   const posMap = new Map();
   cards.forEach(c => posMap.set(c.node.id, c));
 
-  // Рисуем линии от родителя к каждому ребёнку
+  // Линии от родителя к детям — через блоки препов, если они есть
   cards.forEach(c => {
     const children = getVisibleChildren(c.node.id);
     if (children.length === 0) return;
-
-    const parentRight = c.x + c.w;
-    const parentMidY = c.y + c.h / 2;
-    const busX = parentRight + BUS_OFFSET;
-
-    // Горизонтальный отвод от родителя к шине
-    const hLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    hLine.setAttribute('d', `M ${parentRight} ${parentMidY} L ${busX} ${parentMidY}`);
-    hLine.setAttribute('fill', 'none');
-    hLine.setAttribute('stroke', '#3498db');
-    hLine.setAttribute('stroke-width', '2');
-    svg.appendChild(hLine);
-
-    // Вертикальная шина
-    const childCenters = children.map(ch => {
-      const cp = posMap.get(ch.id);
-      return cp ? cp.y + cp.h / 2 : parentMidY;
-    });
-    const busTop = Math.min(parentMidY, ...childCenters);
-    const busBot = Math.max(parentMidY, ...childCenters);
-
-    const vLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    vLine.setAttribute('d', `M ${busX} ${busTop} L ${busX} ${busBot}`);
-    vLine.setAttribute('fill', 'none');
-    vLine.setAttribute('stroke', '#3498db');
-    vLine.setAttribute('stroke-width', '2');
-    svg.appendChild(vLine);
-
-    // Отводы к каждому ребёнку
-    children.forEach(ch => {
-      const cp = posMap.get(ch.id);
-      if (!cp) return;
-      const cy = cp.y + cp.h / 2;
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      line.setAttribute('d', `M ${busX} ${cy} L ${cp.x} ${cy}`);
-      line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', '#3498db');
-      line.setAttribute('stroke-width', '2');
-      svg.appendChild(line);
+    drawFanOut(svg, {
+      fromX: c.x + c.w, fromY: c.y + c.h / 2,
+      busX: c.x + c.w + BUS_OFFSET,
+      items: children.map(ch => posMap.get(ch.id)).filter(Boolean),
+      chips: preps.filter(p => p.parentId === c.node.id),
+      stroke: '#3498db', width: 2
     });
   });
 
@@ -726,63 +708,11 @@ function renderFullTreeNode(c) {
   }
 
   el.append(titleRow, badge);
-  renderPreparationBlock(node, el);
   renderCollapseToggle(node, el);
 
   const isActive = c.isOnPath && node.id === (state.activePath || []).slice(-1)[0];
   if (isActive) {
-    const actions = document.createElement('div');
-    actions.className = 'card-actions';
-
-    const replaceBtn = document.createElement('button');
-    replaceBtn.className = 'icon-btn'; replaceBtn.title = 'Заменить'; replaceBtn.textContent = '⇄';
-    replaceBtn.onclick = (e) => { e.stopPropagation(); replaceMovement(node.id); };
-
-    const addBtn = document.createElement('button');
-    addBtn.className = 'icon-btn'; addBtn.title = 'Продолжить'; addBtn.textContent = '+';
-    const nextBeat = node.beat + node.length;
-    if (allowedLengths(nextBeat).length === 0) {
-      addBtn.disabled = true; addBtn.title = 'Нельзя начать';
-    } else {
-      addBtn.onclick = (e) => {
-        e.stopPropagation();
-        openForm({ parentId: node.id, isRoot: false, beat: nextBeat });
-      };
-    }
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
-    delBtn.onclick = (e) => { e.stopPropagation(); deleteNode(node.id); };
-
-    const prepBtn = document.createElement('button');
-    prepBtn.className = 'icon-btn' + (node.preparation && node.preparation.movementId ? ' prep-active' : '');
-    prepBtn.title = 'Подготовка (параллельное движение)';
-    prepBtn.textContent = '‖';
-    prepBtn.onclick = (e) => { e.stopPropagation(); openPrepPicker(node.id); };
-
-    const existingMerge = state.merges.find(m => m.from === node.id);
-    const mergeBtn = document.createElement('button');
-    mergeBtn.className = 'icon-btn' + (existingMerge ? ' merge-active' : '');
-    mergeBtn.title = existingMerge ? 'Отменить подключение' : 'Подключиться';
-    mergeBtn.textContent = '↩';
-    if (existingMerge) {
-      mergeBtn.onclick = (e) => { e.stopPropagation(); removeMerge(node.id); };
-    } else {
-      const nextB = node.beat + node.length;
-      const targets = nextB <= 32 ? findMergeTargets(node.id) : [];
-      if (targets.length === 0) {
-        mergeBtn.disabled = true; mergeBtn.title = 'Нет подходящих узлов';
-      } else {
-        mergeBtn.onclick = (e) => {
-          e.stopPropagation();
-          mergeSelectFrom = node.id;
-          renderTree();
-        };
-      }
-    }
-
-    actions.append(replaceBtn, addBtn, mergeBtn, prepBtn, delBtn);
-    el.appendChild(actions);
+    el.appendChild(renderCardActions(node));
   }
 
   return el;

@@ -39,15 +39,29 @@
   font-size: 12px; color: #555; white-space: pre-wrap; word-break: break-word;
 }
 
-.combo-prep-inline {
-  font-size: 11px;
-  color: #6b7785;
+.combo-prep {
+  display: inline-block; padding: 0 6px; border: 1px dashed #52b788;
+  border-radius: 10px; background: #f4fbf7; color: #1e6b47; font-size: 11px;
 }
-.combo-prep-inline-name {
-  font-size: 12px;
-  color: #2c3e50;
+.combo-prep .mention { font-size: 11px; }
+.combo-list .mov.focus {
+  background: #fff3e0; border-radius: 3px; padding: 0 3px;
+  box-shadow: inset 0 -2px 0 #e67e22;
 }
-.combo-prep-inline-name .mention { font-size: 12px; }
+.combo-focus-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px; margin-bottom: 8px;
+  background: #fff8f0; border: 1px solid #f0c9a0; border-radius: 6px;
+  font-size: 13px;
+}
+.combo-focus-name { font-weight: 600; }
+.combo-focus-actions { display: flex; gap: 6px; }
+.combo-focus-actions button {
+  background: #fff; color: #555; border: 1px solid #dfe4e9;
+  border-radius: 4px; padding: 3px 8px; font-size: 12px; cursor: pointer;
+}
+.combo-focus-actions button:hover { background: #f4f6f8; }
 .combo-list .mov { color: #2c3e50; font-weight: 500; }
 .combo-list .beat { color: #27ae60; font-size: 12px; }
 .combo-list .arrow { color: #b0b8c1; margin: 0 4px; }

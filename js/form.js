@@ -17,6 +17,7 @@ function buildForm() {
   formEl.innerHTML = '';
   formEl.appendChild(renderFormContent());
   formBuiltFor = sig;
+  updateFormPrepRow();
 }
 function showForm() {
   const formEl = document.getElementById('formLayer');
@@ -85,14 +86,9 @@ function submitForm() {
   if (!movementId) { errorEl.textContent = 'Выберите движение или введите новое.'; return; }
   const length = parseInt(lenSelect.value, 10);
   if (openFormState.isRoot) addRootNode(movementId, length);
-  else addChildNode(openFormState.parentId, movementId, openFormState.beat, length);
-  if (openFormState.draftPreparation && openFormState.draftPreparation.movementId) {
-    const newId = state.activePath[state.activePath.length - 1];
-    const pmov = getMovement(openFormState.draftPreparation.movementId);
-    if (newId && state.nodes[newId] && pmov) {
-      state.nodes[newId].preparation = { movementId: pmov.id };
-      saveState(); render();
-    }
+  else {
+    const prepId = openFormState.prepId && getPrep(openFormState.prepId) ? openFormState.prepId : null;
+    addChildNode(openFormState.parentId, movementId, openFormState.beat, length, prepId);
   }
   closeForm();
 }
@@ -204,86 +200,50 @@ function renderFormContent() {
   row2.append(label2, inputRow);
   frag.appendChild(row2);
 
-  const prepRow = document.createElement('div');
-  prepRow.className = 'row prep-form-row';
-  const prepLabel = document.createElement('label');
-  prepLabel.textContent = 'Подготовка (из библиотеки):';
-  const prepBox = document.createElement('div');
-  prepBox.className = 'prep-form-box';
-  const prepNameEl = document.createElement('span');
-  prepNameEl.className = 'prep-form-name muted';
-  prepNameEl.textContent = 'Не добавлена';
-  const prepActions = document.createElement('div');
-  prepActions.className = 'prep-form-actions';
-  const prepPick = document.createElement('button');
-  prepPick.type = 'button';
-  prepPick.className = 'icon-btn';
-  prepPick.title = 'Выбрать из библиотеки';
-  prepPick.textContent = '…';
-  const prepEdit = document.createElement('button');
-  prepEdit.type = 'button';
-  prepEdit.className = 'icon-btn';
-  prepEdit.title = 'Редактировать подготовку';
-  prepEdit.textContent = '✎';
-  prepEdit.disabled = true;
-  const prepClear = document.createElement('button');
-  prepClear.type = 'button';
-  prepClear.className = 'icon-btn danger';
-  prepClear.title = 'Убрать подготовку';
-  prepClear.textContent = '✕';
-  prepClear.disabled = true;
-  prepActions.append(prepPick, prepEdit, prepClear);
-  prepBox.append(prepNameEl, prepActions);
-  prepRow.append(prepLabel, prepBox);
-  frag.appendChild(prepRow);
-
-  prepPick.onclick = () => {
-    if (!openFormState) return;
-    openPrepPicker(openFormState.nodeId || null);
-  };
-  prepEdit.onclick = () => {
-    if (!openFormState) return;
-    if (openFormState.nodeId) {
-      const node = state.nodes[openFormState.nodeId];
-      if (node && node.preparation && node.preparation.movementId) {
-        openMovementModal({ movementId: node.preparation.movementId });
-      }
-    } else if (openFormState.draftPreparation && openFormState.draftPreparation.movementId) {
-      openMovementModal({ movementId: openFormState.draftPreparation.movementId });
-    }
-  };
-  prepClear.onclick = () => {
-    if (!openFormState) return;
-    if (openFormState.nodeId) {
-      const node = state.nodes[openFormState.nodeId];
-      if (node) { node.preparation = null; saveState(); render(); buildForm(); positionForm(); }
-    } else {
-      delete openFormState.draftPreparation;
-      buildForm(); positionForm();
-    }
-  };
-  function updatePrepForm() {
-    if (!openFormState) return;
-    const node = openFormState.nodeId ? state.nodes[openFormState.nodeId] : null;
-    const draftId = (!node && openFormState.draftPreparation) ? openFormState.draftPreparation.movementId : null;
-    const prepId = (node && node.preparation && node.preparation.movementId)
-      ? node.preparation.movementId
-      : draftId;
-    if (prepId) {
-      const pm = getMovement(prepId);
-      prepNameEl.textContent = pm ? pm.name : `Движение #${prepId}`;
-      prepNameEl.classList.toggle('muted', !pm);
-      prepEdit.disabled = !pm;
-      prepClear.disabled = false;
-    } else {
-      prepNameEl.textContent = 'Не добавлена';
-      prepNameEl.classList.add('muted');
-      prepEdit.disabled = true;
-      prepClear.disabled = true;
-    }
+  // Преп на линии родитель → новое движение. У новой связки (корня)
+  // входящей линии нет, поэтому строки нет.
+  if (!openFormState.isRoot) {
+    const prepRow = document.createElement('div');
+    prepRow.className = 'row prep-form-row';
+    const prepLabel = document.createElement('label');
+    prepLabel.textContent = 'Преп на линии:';
+    const prepBox = document.createElement('div');
+    prepBox.className = 'prep-form-box';
+    const prepNameEl = document.createElement('span');
+    prepNameEl.className = 'prep-form-name';
+    const prepActions = document.createElement('div');
+    prepActions.className = 'prep-form-actions';
+    const prepPick = document.createElement('button');
+    prepPick.type = 'button';
+    prepPick.className = 'icon-btn prep-form-pick';
+    prepPick.title = 'Выбрать из библиотеки препов или создать новый';
+    prepPick.textContent = '…';
+    prepPick.onclick = () => {
+      if (!openFormState) return;
+      openPrepPicker({
+        currentId: openFormState.prepId || null,
+        onPick: (prepId) => {
+          if (!openFormState) return;
+          openFormState.prepId = prepId;
+          updateFormPrepRow();
+        }
+      });
+    };
+    const prepClear = document.createElement('button');
+    prepClear.type = 'button';
+    prepClear.className = 'icon-btn danger prep-form-clear';
+    prepClear.title = 'Без препа';
+    prepClear.textContent = '✕';
+    prepClear.onclick = () => {
+      if (!openFormState) return;
+      openFormState.prepId = null;
+      updateFormPrepRow();
+    };
+    prepActions.append(prepPick, prepClear);
+    prepBox.append(prepNameEl, prepActions);
+    prepRow.append(prepLabel, prepBox);
+    frag.appendChild(prepRow);
   }
-  updatePrepForm();
-  prepRow.updatePrepForm = updatePrepForm;
 
   const row3 = document.createElement('div');
   row3.className = 'row';
@@ -343,47 +303,15 @@ function updateFormEditButtons() {
   if (selectBtn) selectBtn.disabled = !(select && select.value);
   if (inputBtn) inputBtn.disabled = !(input && mentionText(input).trim());
 }
-function openPrepPicker(nodeId) {
-  if (!state.movements || state.movements.length === 0) {
-    alert('В библиотеке нет движений. Сначала добавьте движение.');
-    return;
-  }
-  const modal = document.createElement('div');
-  modal.className = 'modal-bg open';
-  modal.innerHTML = `
-    <div class="modal prep-picker-modal">
-      <h3>Выбрать подготовку из библиотеки</h3>
-      <p class="hint">Можно выбрать только одно движение.</p>
-      <div class="prep-picker-list"></div>
-      <div class="actions">
-        <button class="btn secondary prep-cancel">Отмена</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-  const list = modal.querySelector('.prep-picker-list');
-  state.movements.slice().sort((a,b) => a.name.localeCompare(b.name)).forEach(m => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = 'prep-picker-item';
-    const name = document.createElement('span');
-    name.className = 'prep-picker-name';
-    renderRichText(nameSegmentsOf(m), name);
-    item.appendChild(name);
-    item.onclick = () => {
-      if (nodeId && state.nodes[nodeId]) {
-        state.nodes[nodeId].preparation = { movementId: m.id };
-        saveState();
-        render();
-      } else if (openFormState) {
-        openFormState.draftPreparation = { movementId: m.id };
-      }
-      document.body.removeChild(modal);
-      buildForm();
-      positionForm();
-    };
-    list.appendChild(item);
-  });
-  modal.querySelector('.prep-cancel').onclick = () => document.body.removeChild(modal);
-  modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
+// Строка препа обновляется на месте: buildForm не перестраивает форму при
+// той же сигнатуре, а выбранное движение и длительность терять нельзя.
+function updateFormPrepRow() {
+  const nameEl = document.querySelector('#formLayer .prep-form-name');
+  if (!nameEl || !openFormState) return;
+  const prep = openFormState.prepId ? getPrep(openFormState.prepId) : null;
+  if (prep) renderRichText(nameSegmentsOf(prep), nameEl);
+  else nameEl.textContent = 'Без препа';
+  nameEl.classList.toggle('muted', !prep);
+  const clearBtn = document.querySelector('#formLayer .prep-form-clear');
+  if (clearBtn) clearBtn.disabled = !prep;
 }

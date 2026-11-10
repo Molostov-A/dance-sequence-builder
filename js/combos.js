@@ -63,11 +63,6 @@ function rebuildNodeVideoIndex() {
       if (seen.has(node.id)) return;
       seen.add(node.id);
       nodeVideoIndex[node.id] = (nodeVideoIndex[node.id] || 0) + videos.length;
-      if (node.preparation && node.preparation.movementId) {
-        if (!seen.has('p:' + node.id)) {
-          seen.add('p:' + node.id);
-        }
-      }
     });
   });
 }
@@ -94,11 +89,6 @@ function rebuildMovementVideoIndex() {
     combo.forEach(node => {
       if (!placesByMovement[node.movementId]) placesByMovement[node.movementId] = [];
       placesByMovement[node.movementId].push({ beat: node.beat, length: node.length });
-      if (node.preparation && node.preparation.movementId) {
-        const pmid = node.preparation.movementId;
-        if (!placesByMovement[pmid]) placesByMovement[pmid] = [];
-        placesByMovement[pmid].push({ beat: node.beat, length: node.length, prep: true });
-      }
     });
     videos.forEach(url => {
       Object.keys(placesByMovement).forEach(key => {
@@ -190,6 +180,64 @@ function parseComboVideoUrl(raw) {
     openUrl: `https://drive.google.com/file/d/${fileId}/view${suffix}`
   };
 }
+/* Преп шага комбинации — это преп линии, по которой в шаг пришли.
+   Линия настоящая, только если предыдущий шаг — родитель этого узла;
+   переход по merge — неявный, своего препа у него нет. */
+function comboStepPrep(combo, i) {
+  if (i === 0) return null;
+  const node = combo[i];
+  if (!node.prepId || node.parentId !== combo[i - 1].id) return null;
+  return getPrep(node.prepId) || null;
+}
+
+/* Переход из дерева к комбинациям узла: раздел «Комбинации» показывает
+   только комбинации, проходящие через этот узел, с плашкой «Показать все».
+   Нумерация остаётся общей, чтобы #N совпадал с полным списком и экспортом.
+   Фильтр живёт в переменной модуля и не сохраняется в state. */
+let comboFocusNodeId = null;
+
+function showCombosForNode(nodeId) {
+  if (!state.nodes[nodeId]) return;
+  comboFocusNodeId = nodeId;
+  setView('combos');
+  const body = document.querySelector('#view-combos .view-body');
+  if (body) body.scrollTop = 0;
+}
+
+function clearComboFocus() {
+  comboFocusNodeId = null;
+  renderCombos();
+}
+
+function renderComboFocusBar(container, shown, total) {
+  const node = state.nodes[comboFocusNodeId];
+  const mov = node ? getMovement(node.movementId) : null;
+  const bar = document.createElement('div');
+  bar.className = 'combo-focus-bar';
+  const text = document.createElement('span');
+  text.className = 'combo-focus-text';
+  text.append('Комбинации с «');
+  const name = document.createElement('span');
+  name.className = 'combo-focus-name';
+  renderRichText(nameSegmentsOf(mov), name);
+  text.append(name, `» (${formatBeatNode(node.beat, node.length)}): ${shown} из ${total}`);
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'combo-focus-tree';
+  back.textContent = '← К узлу в дереве';
+  back.onclick = () => { setActiveNode(node.id); setView('tree'); };
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'combo-focus-clear';
+  all.textContent = 'Показать все';
+  all.onclick = clearComboFocus;
+  const actions = document.createElement('span');
+  actions.className = 'combo-focus-actions';
+  actions.append(back, all);
+  bar.append(text, actions);
+  container.appendChild(bar);
+}
+
 function renderCombos() {
   const container = document.getElementById('combosContainer');
   container.innerHTML = '';
@@ -201,9 +249,16 @@ function renderCombos() {
     hint.textContent = 'Комбинации появятся, когда в дереве будут завершённые пути.';
     container.appendChild(hint); return;
   }
+  if (comboFocusNodeId !== null && !state.nodes[comboFocusNodeId]) comboFocusNodeId = null;
+  const focusId = comboFocusNodeId;
+  if (focusId !== null) {
+    const shown = combos.filter(c => c.some(n => n.id === focusId)).length;
+    renderComboFocusBar(container, shown, combos.length);
+  }
   const ul = document.createElement('ul');
   ul.className = 'combo-list';
   combos.forEach((combo, idx) => {
+    if (focusId !== null && !combo.some(n => n.id === focusId)) return;
     const li = document.createElement('li');
     const totalBeats = combo.reduce((s, n) => s + n.length, 0);
     const idxSpan = document.createElement('span');
@@ -243,10 +298,21 @@ function renderCombos() {
         const arrow = document.createElement('span');
         arrow.className = 'arrow'; arrow.textContent = '→';
         li.appendChild(arrow);
+        const prep = comboStepPrep(combo, i);
+        if (prep) {
+          const prepSpan = document.createElement('span');
+          prepSpan.className = 'combo-prep';
+          prepSpan.title = movementNotes(prep) || 'Преп';
+          renderRichText(nameSegmentsOf(prep), prepSpan);
+          const arrow2 = document.createElement('span');
+          arrow2.className = 'arrow'; arrow2.textContent = '→';
+          li.append(prepSpan, arrow2);
+        }
       }
       const mov = getMovement(node.movementId);
       const movSpan = document.createElement('span');
       movSpan.className = 'mov';
+      if (node.id === focusId) movSpan.classList.add('focus');
       renderRichText(nameSegmentsOf(mov), movSpan);
       const beatSpan = document.createElement('span');
       beatSpan.className = 'beat';
@@ -256,19 +322,6 @@ function renderCombos() {
         const sq = document.createElement('span');
         sq.className = 'square-mark'; sq.textContent = '✓';
         li.appendChild(sq);
-      }
-      if (node.preparation && node.preparation.movementId) {
-        const pm = getMovement(node.preparation.movementId);
-        if (pm) {
-          const prep = document.createElement('span');
-          prep.className = 'combo-prep-inline';
-          prep.textContent = ' +подготовка: ';
-          const pspan = document.createElement('span');
-          pspan.className = 'combo-prep-inline-name';
-          renderRichText(nameSegmentsOf(pm), pspan);
-          prep.appendChild(pspan);
-          li.appendChild(prep);
-        }
       }
     });
     if (descText) {

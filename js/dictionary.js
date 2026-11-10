@@ -13,11 +13,13 @@ function conceptTextFromSegments(segments) {
 
 function collectConceptUsage(conceptId) {
   const out = [];
-  state.movements.forEach(mov => {
-    if ((mov.nameSegments || []).some(s => s.conceptId === conceptId)) out.push(`Движение «${mov.name}» — название`);
-    if ((mov.leadSegments || []).some(s => s.conceptId === conceptId)) out.push(`Движение «${mov.name}» — лид`);
-    if ((mov.followSegments || []).some(s => s.conceptId === conceptId)) out.push(`Движение «${mov.name}» — фоллоу`);
+  const scan = (list, what) => list.forEach(mov => {
+    if ((mov.nameSegments || []).some(s => s.conceptId === conceptId)) out.push(`${what} «${mov.name}» — название`);
+    if ((mov.leadSegments || []).some(s => s.conceptId === conceptId)) out.push(`${what} «${mov.name}» — лид`);
+    if ((mov.followSegments || []).some(s => s.conceptId === conceptId)) out.push(`${what} «${mov.name}» — фоллоу`);
   });
+  scan(state.movements, 'Движение');
+  scan(state.preps || [], 'Преп');
   state.concepts.forEach(c => {
     if (c.id === conceptId) return;
     if ((c.definitionSegments || []).some(s => s.conceptId === conceptId)) out.push(`Понятие «${c.short}» — определение`);
@@ -30,7 +32,8 @@ function replaceConceptReferences(oldId, repl) {
     if (!segments) return segments;
     return segments.map(s => s.conceptId === oldId ? Object.assign({}, repl) : s);
   };
-  state.movements.forEach(mov => {
+  // Препы устроены как движения (название/лид/фоллоу с сегментами)
+  state.movements.concat(state.preps || []).forEach(mov => {
     mov.nameSegments = replaceIn(mov.nameSegments);
     mov.leadSegments = replaceIn(mov.leadSegments);
     mov.followSegments = replaceIn(mov.followSegments);
@@ -52,7 +55,7 @@ function pruneMentions() {
       return s;
     });
   };
-  state.movements.forEach(mov => {
+  state.movements.concat(state.preps || []).forEach(mov => {
     mov.nameSegments = clean(mov.nameSegments);
     mov.leadSegments = clean(mov.leadSegments);
     mov.followSegments = clean(mov.followSegments);

@@ -29,6 +29,8 @@
 .icon-btn.danger:active { background: #fde8e8; color: #c0392b; }
 
 .add-mov-row { display: flex; gap: 6px; margin-top: 8px; }
+.add-mov-row.add-mov-row-top { margin: 0 0 10px; }
+.view-hint { font-size: 12px; color: #7f8c8d; margin: 0 0 10px; }
 .add-mov-row input {
   flex: 1; padding: 8px; border: 1px solid #ccc;
   border-radius: 4px; font-size: 16px; min-width: 0;

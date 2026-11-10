@@ -40,6 +40,7 @@
   <nav class="nav-menu" id="navMenu">
     <button class="nav-item active" type="button" data-view="tree">Дерево связок</button>
     <button class="nav-item" type="button" data-view="library">Библиотека движений</button>
+    <button class="nav-item" type="button" data-view="preps">Библиотека препов</button>
     <button class="nav-item" type="button" data-view="combos">Комбинации</button>
     <button class="nav-item" type="button" data-view="generator">Генератор</button>
     <button class="nav-item" type="button" data-view="dictionary">Словарь</button>
@@ -72,11 +73,25 @@
       <span>Библиотека движений <span id="libCount" class="panel-count lib"></span></span>
     </div>
     <div class="view-body">
-      <ul class="mov-list" id="movList"></ul>
-      <div class="add-mov-row">
+      <div class="add-mov-row add-mov-row-top">
         <div id="newMovInput" class="mention-editor single" contenteditable="true" data-placeholder="Новое движение"></div>
         <button class="btn" id="btnAddMovement">+</button>
       </div>
+      <ul class="mov-list" id="movList"></ul>
+    </div>
+  </section>
+
+  <section class="view" id="view-preps">
+    <div class="view-header">
+      <span>Библиотека препов <span id="prepCount" class="panel-count lib"></span></span>
+    </div>
+    <div class="view-body">
+      <p class="view-hint">Преп — переходный мостик на линии между движениями. Счётов не занимает; за одним препом из движения может выходить несколько продолжений.</p>
+      <div class="add-mov-row add-mov-row-top">
+        <div id="newPrepInput" class="mention-editor single" contenteditable="true" data-placeholder="Новый преп"></div>
+        <button class="btn" id="btnAddPrep">+</button>
+      </div>
+      <ul class="mov-list" id="prepList"></ul>
     </div>
   </section>
 
@@ -171,15 +186,15 @@
   </div>
 </div>
 
-<div class="modal-bg" id="replaceMovementModal" role="dialog" aria-modal="true" aria-labelledby="replaceMovementTitle">
-  <div class="modal replace-movement-modal">
-    <h3 id="replaceMovementTitle">Заменить движение</h3>
-    <p class="hint" id="replaceMovementHint"></p>
-    <input type="text" id="replaceMovementSearch" class="replace-movement-search" placeholder="Поиск по библиотеке или название нового движения" autocomplete="off">
-    <div id="replaceMovementList" class="replace-movement-list"></div>
-    <button type="button" class="btn secondary replace-movement-new" id="btnReplaceWithNew">+ Новое движение</button>
+<div class="modal-bg" id="libraryPickerModal" role="dialog" aria-modal="true" aria-labelledby="libraryPickerTitle">
+  <div class="modal library-picker-modal">
+    <h3 id="libraryPickerTitle">Выбрать</h3>
+    <p class="hint" id="libraryPickerHint"></p>
+    <input type="text" id="libraryPickerSearch" class="library-picker-search" autocomplete="off">
+    <div id="libraryPickerList" class="library-picker-list"></div>
+    <button type="button" class="btn secondary library-picker-new" id="btnLibraryPickerNew">+ Новый</button>
     <div class="actions">
-      <button class="btn secondary" id="btnCancelReplaceMovement">Отмена</button>
+      <button class="btn secondary" id="btnCancelLibraryPicker">Отмена</button>
     </div>
   </div>
 </div>
@@ -321,6 +336,8 @@
 <script src="js/state.js"></script>
 <script src="js/beat.js"></script>
 <script src="js/movements.js"></script>
+<script src="js/preps.js"></script>
+<script src="js/picker.js"></script>
 <script src="js/nodes.js"></script>
 <script src="js/path.js"></script>
 <script src="js/layout.js"></script>

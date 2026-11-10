@@ -29,6 +29,20 @@ function renameMovement(id) {
 let movementModalState = null;
 let movementModalFocus = null;
 
+/* Модалка общая для движений и препов: у них одинаковые поля (название,
+   лид, фоллоу с @-ссылками) и одинаковое правило уникальности имени.
+   opts.kind === 'prep' переключает коллекцию и подписи. */
+function movementModalTexts(isPrep) {
+  return isPrep
+    ? { edit: 'Редактировать преп', create: 'Новый преп', what: 'Преп', noun: 'преп', empty: 'Введите название препа.', dup: 'Такой преп уже есть в библиотеке.' }
+    : { edit: 'Редактировать движение', create: 'Новое движение', what: 'Движение', noun: 'движение', empty: 'Введите название движения.', dup: 'Такое движение уже есть в библиотеке.' };
+}
+
+function movementModalTarget(opts) {
+  if (opts.kind === 'prep') return opts.prepId ? getPrep(opts.prepId) : null;
+  return opts.movementId ? getMovement(opts.movementId) : null;
+}
+
 function openMovementModal(opts) {
   if (!opts) return;
   const input = document.getElementById('movementNameInput');
@@ -38,17 +52,18 @@ function openMovementModal(opts) {
   const hint = document.getElementById('movementModalHint');
   const errorEl = document.getElementById('movementModalError');
   errorEl.textContent = '';
+  const texts = movementModalTexts(opts.kind === 'prep');
 
-  if (opts.movementId) {
-    const mov = getMovement(opts.movementId);
-    if (!mov) return;
-    title.textContent = 'Редактировать движение';
-    hint.textContent = `Движение #${mov.id}`;
-    setMentionText(input, mov.nameSegments || mov.name);
-    setMentionText(leadInput, mov.leadSegments || mov.lead);
-    setMentionText(followInput, mov.followSegments || mov.follow);
+  if (opts.movementId || opts.prepId) {
+    const item = movementModalTarget(opts);
+    if (!item) return;
+    title.textContent = texts.edit;
+    hint.textContent = `${texts.what} #${item.id}`;
+    setMentionText(input, item.nameSegments || item.name);
+    setMentionText(leadInput, item.leadSegments || item.lead);
+    setMentionText(followInput, item.followSegments || item.follow);
   } else {
-    title.textContent = 'Новое движение';
+    title.textContent = texts.create;
     hint.textContent = 'Отредактируйте название и описание перед добавлением.';
     setMentionText(input, opts.text || '');
     setMentionText(leadInput, opts.lead || '');
@@ -79,37 +94,40 @@ function saveMovementModal() {
   const name = mentionText(input).trim();
   const lead = mentionText(leadInput).trim();
   const follow = mentionText(followInput).trim();
+  const modalState = movementModalState;
+  const isPrep = modalState.kind === 'prep';
+  const texts = movementModalTexts(isPrep);
   if (!name) {
-    errorEl.textContent = 'Введите название движения.';
+    errorEl.textContent = texts.empty;
     input.focus();
     return;
   }
 
-  const modalState = movementModalState;
-  if (modalState.movementId) {
-    const mov = getMovement(modalState.movementId);
-    if (!mov) { closeMovementModal(); return; }
-    const duplicate = state.movements.find(m =>
-      m.id !== mov.id && m.name.toLowerCase() === name.toLowerCase()
+  if (modalState.movementId || modalState.prepId) {
+    const item = movementModalTarget(modalState);
+    if (!item) { closeMovementModal(); return; }
+    const collection = isPrep ? state.preps : state.movements;
+    const duplicate = collection.find(m =>
+      m.id !== item.id && m.name.toLowerCase() === name.toLowerCase()
     );
     if (duplicate) {
-      errorEl.textContent = 'Такое движение уже есть в библиотеке.';
+      errorEl.textContent = texts.dup;
       input.focus();
       focusMentionEditor(input, true);
       return;
     }
-    if (mov.name !== name || (mov.lead || '') !== lead || (mov.follow || '') !== follow) {
-      mov.name = name;
-      mov.nameSegments = mentionSegments(input);
-      mov.lead = lead;
-      mov.leadSegments = mentionSegments(leadInput);
-      mov.follow = follow;
-      mov.followSegments = mentionSegments(followInput);
+    if (item.name !== name || (item.lead || '') !== lead || (item.follow || '') !== follow) {
+      item.name = name;
+      item.nameSegments = mentionSegments(input);
+      item.lead = lead;
+      item.leadSegments = mentionSegments(leadInput);
+      item.follow = follow;
+      item.followSegments = mentionSegments(followInput);
       saveState();
       render();
-      if (typeof syncFormMovementOption === 'function') syncFormMovementOption(mov.id);
+      if (!isPrep && typeof syncFormMovementOption === 'function') syncFormMovementOption(item.id);
     }
-    if (typeof modalState.onSaved === 'function') modalState.onSaved(mov);
+    if (typeof modalState.onSaved === 'function') modalState.onSaved(item);
   } else if (typeof modalState.onSaved === 'function') {
     modalState.onSaved({
       name,
@@ -124,15 +142,8 @@ function saveMovementModal() {
 }
 function deleteMovement(id) {
   const usage = Object.values(state.nodes).filter(n => n.movementId === id).length;
-  const prepUsage = Object.values(state.nodes)
-    .filter(n => n.movementId !== id && n.preparation && n.preparation.movementId === id).length;
-  if (usage > 0 || prepUsage > 0) {
-    const parts = [];
-    if (usage > 0) parts.push(`в ${usage} узл(ах) — они будут удалены вместе с продолжениями`);
-    if (prepUsage > 0) parts.push(`как подготовка в ${prepUsage} узл(ах) — подготовка будет убрана`);
-    if (!confirm(`Движение используется ${parts.join('; ')}. Удалить?`)) return;
-  }
   if (usage > 0) {
+    if (!confirm(`Движение используется в ${usage} узл(ах). Удалить и убрать из дерева?`)) return;
     const toDelete = new Set();
     const collect = (nid) => {
       toDelete.add(nid);
@@ -147,13 +158,6 @@ function deleteMovement(id) {
     state.activePath = state.activePath.filter(p => !toDelete.has(p));
     state.collapsedNodes = (state.collapsedNodes || []).filter(c => !toDelete.has(c));
     state.merges = state.merges.filter(m => !toDelete.has(m.from) && !toDelete.has(m.to));
-  }
-  // Подготовка ссылается на движение, а не на узел — убираем её у выживших узлов
-  Object.values(state.nodes).forEach(n => {
-    if (n.preparation && n.preparation.movementId === id) n.preparation = null;
-  });
-  if (openFormState && openFormState.draftPreparation && openFormState.draftPreparation.movementId === id) {
-    openFormState.draftPreparation = null;
   }
   state.movements = state.movements.filter(m => m.id !== id);
   pruneComboVideos();
