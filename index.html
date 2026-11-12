@@ -2,27 +2,32 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="app-version" content="2026-11-10.2">
+<meta name="app-version" content="2026-11-13.1">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>Конструктор танцевальных связок</title>
 <link rel="icon" type="image/png" sizes="32x32" href="img/icon.png">
 <link rel="apple-touch-icon" href="img/icon.png">
-<link rel="stylesheet" href="css/base.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/layout.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/library.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/tree.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/form.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/combo.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/modal.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/responsive.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/generator.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/dictionary.css?v=2026-11-10.2">
-<link rel="stylesheet" href="css/mentions.css?v=2026-11-10.2">
+<link rel="stylesheet" href="css/base.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/layout.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/library.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/tree.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/form.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/combo.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/modal.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/responsive.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/generator.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/dictionary.css?v=2026-11-13.1">
+<link rel="stylesheet" href="css/mentions.css?v=2026-11-13.1">
 </head>
 <body>
 
 <div id="staleBanner" class="stale-banner hidden">
   Загружены старые файлы приложения — обновите страницу (Ctrl+F5).
+</div>
+<div id="storageBanner" class="storage-banner hidden" role="alert">
+  Изменения не сохранены: хранилище браузера недоступно или заполнено. Экспортируйте данные перед закрытием страницы.
+  <button id="btnStorageExport" type="button">Экспортировать данные</button>
+  <button id="btnStorageRetry" type="button">Повторить сохранение</button>
 </div>
 <header>
   <button class="nav-btn" id="navToggle" type="button" title="Открыть/закрыть меню разделов">☰ Разделы</button>
@@ -31,6 +36,8 @@
   <button id="btnAddRoot">+ Связка</button>
   <button id="btnExportCombos" class="alt">Экспорт комб.</button>
   <button id="btnExportAll">Экспорт всего</button>
+  <button id="btnAccount" type="button">Войти и сохранять</button>
+  <span id="accountSyncStatus" class="account-sync-status" role="status">На устройстве</span>
   <button id="btnImport" class="danger">Импорт</button>
   <input type="file" id="importFile" accept=".json,application/json" class="hidden">
 </header>
@@ -178,6 +185,11 @@
       <label class="import-field-label" for="importUrlInput">Ссылка на JSON-файл</label>
       <input type="url" id="importUrlInput" class="import-url-input" placeholder="https://drive.google.com/…" autocomplete="off" spellcheck="false">
       <div class="error" id="importUrlError"></div>
+      <div id="importUrlFallback" class="hidden">
+        <p class="hint">Google Диск может запрещать прямой импорт даже открытых файлов. Скачайте JSON и выберите его на устройстве. Если скачивание тоже недоступно, проверьте доступ к файлу.</p>
+        <a id="importDownloadLink" target="_blank" rel="noopener noreferrer">Скачать файл</a>
+        <button class="btn secondary" id="btnImportDownloaded" type="button">Выбрать скачанный JSON</button>
+      </div>
       <div class="actions">
         <button class="btn secondary" id="btnImportBack" type="button">Назад</button>
         <button class="btn" id="btnImportFetch" type="button">Импортировать</button>
@@ -185,6 +197,96 @@
     </div>
     <div class="actions" id="importCancelRow">
       <button class="btn secondary" id="btnCloseImport" type="button">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
+  <div class="modal account-modal">
+    <h3 id="accountTitle">Аккаунт и сохранение</h3>
+    <p class="hint" id="accountIntro">Войдите, чтобы сохранять свою библиотеку на сервере и открывать её на других устройствах.</p>
+    <p id="accountStatusText" class="account-status" role="status"></p>
+    <p id="accountMessage" class="account-message" aria-live="polite"></p>
+    <div id="accountLogin">
+      <button class="btn" id="btnAccountGoogle" type="button">Войти через Google</button>
+      <div id="accountEmailLogin">
+      <p class="hint account-email-hint" id="accountEmailHint">Или получите код на почту:</p>
+      <label for="accountEmailInput">Email</label>
+      <input id="accountEmailInput" type="email" autocomplete="email" placeholder="you@example.com">
+      <button class="btn secondary" id="btnEmailCode" type="button">Получить код</button>
+      <div id="accountCodeRow" class="hidden">
+        <label for="accountCodeInput">Код из письма</label>
+        <input id="accountCodeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+        <button class="btn" id="btnEmailVerify" type="button">Войти по коду</button>
+      </div>
+      </div>
+    </div>
+    <div id="accountSignedIn" class="hidden">
+      <p id="accountEmailText" class="account-email"></p>
+      <div class="account-actions">
+        <button class="btn" id="btnAccountSync" type="button">Синхронизировать</button>
+        <button class="btn secondary" id="btnAccountLinkGoogle" type="button">Привязать Google</button>
+        <button class="btn secondary" id="btnAccountLogout" type="button">Выйти</button>
+        <button class="btn secondary hidden" id="btnAccountMigrate" type="button">Перенести гостевую библиотеку</button>
+      </div>
+    </div>
+    <div id="accountConflict" class="account-conflict hidden">
+      <p>Локальная и серверная версии различаются. Перед выбором можно сохранить локальную копию кнопкой «Экспорт всего».</p>
+      <div class="account-actions">
+        <button class="btn secondary" id="btnAccountUseServer" type="button">Загрузить с сервера</button>
+        <button class="btn" id="btnAccountUseLocal" type="button">Сохранить мою версию</button>
+      </div>
+    </div>
+    <details class="account-backup">
+      <summary>Дополнительно: Google Диск</summary>
+      <p class="hint">Запасной вариант хранения в вашем файле Google Диска.</p>
+      <button class="btn secondary" id="btnDriveCloud" type="button">Открыть Google Диск</button>
+      <span id="driveSyncStatus" class="drive-sync-status" role="status"></span>
+    </details>
+    <div class="actions"><button class="btn secondary" id="btnCloseAccount" type="button">Закрыть</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="driveModal" role="dialog" aria-modal="true" aria-labelledby="driveTitle">
+  <div class="modal drive-modal">
+    <h3 id="driveTitle">Связать с Google Диском</h3>
+    <p class="hint" id="driveIntro">Выберите JSON-файл один раз. Изменения будут сохраняться в него автоматически. После перезапуска может понадобиться снова нажать «Подключиться».</p>
+    <a id="driveFileLink" class="drive-file-link hidden" target="_blank" rel="noopener noreferrer"></a>
+    <p id="driveStatusText" class="drive-status" role="status"></p>
+    <p id="driveMessage" class="drive-message" aria-live="polite"></p>
+    <div class="drive-actions">
+      <button class="btn" id="btnDriveAuthorize" type="button">Подключиться</button>
+      <button class="btn secondary" id="btnDriveChoose" type="button">Выбрать JSON</button>
+      <button class="btn secondary" id="btnDriveSync" type="button">Синхронизировать сейчас</button>
+    </div>
+    <div id="driveConflict" class="drive-conflict hidden">
+      <p>На устройстве и в облаке разные данные. Автосохранение приостановлено. Перед выбором можно сохранить локальную копию кнопкой «Экспорт всего».</p>
+      <div class="drive-actions">
+        <button class="btn secondary" id="btnDriveLoadRemote" type="button">Загрузить облачную версию</button>
+        <button class="btn" id="btnDriveKeepLocal" type="button">Сохранить мою версию в облаке</button>
+      </div>
+    </div>
+    <details id="driveSettings" class="drive-settings">
+      <summary>Настройка Google Cloud</summary>
+      <p class="hint">Нужна однократная настройка проекта Google Cloud. <a href="https://developers.google.com/workspace/drive/picker/guides/web-picker" target="_blank" rel="noopener noreferrer">Инструкция Google</a>. Секрет клиента вводить не нужно.</p>
+      <ol class="drive-setup-steps">
+        <li>Включите Google Drive API и Google Picker API в одном проекте Google Cloud.</li>
+        <li>Создайте OAuth-клиент типа «Веб-приложение». Разрешённый JavaScript origin: <code id="driveSetupOrigin"></code>. Добавьте свой аккаунт в тестовые пользователи, если проект в режиме Testing.</li>
+        <li>Разрешение для выбранного файла: <code>https://www.googleapis.com/auth/drive.file</code>.</li>
+        <li>Создайте браузерный API key для Drive и Picker. Разрешите сайт приложения и <code>https://docs.google.com/*</code>.</li>
+        <li>Введите Client ID, API key и числовой Project number ниже.</li>
+      </ol>
+      <label for="driveClientId">OAuth Client ID</label>
+      <input id="driveClientId" type="text" placeholder="…apps.googleusercontent.com" autocomplete="off" spellcheck="false">
+      <label for="driveApiKey">API key для Google Picker</label>
+      <input id="driveApiKey" type="text" autocomplete="off" spellcheck="false">
+      <label for="driveProjectNumber">Номер проекта Google Cloud</label>
+      <input id="driveProjectNumber" type="text" inputmode="numeric" autocomplete="off" spellcheck="false">
+      <button class="btn secondary" id="btnDriveSettingsSave" type="button">Сохранить настройки</button>
+    </details>
+    <div class="actions">
+      <button class="btn secondary" id="btnDriveDisconnect" type="button">Отвязать файл</button>
+      <button class="btn secondary" id="btnCloseDrive" type="button">Закрыть</button>
     </div>
   </div>
 </div>
@@ -370,27 +472,31 @@
 <div id="mentionTooltip" class="mention-tooltip hidden"></div>
 <div id="prepTooltip" class="prep-tooltip hidden"></div>
 
-<script src="js/constants.js?v=2026-11-10.2"></script>
-<script src="js/state.js?v=2026-11-10.2"></script>
-<script src="js/beat.js?v=2026-11-10.2"></script>
-<script src="js/movements.js?v=2026-11-10.2"></script>
-<script src="js/preps.js?v=2026-11-10.2"></script>
-<script src="js/picker.js?v=2026-11-10.2"></script>
-<script src="js/nodes.js?v=2026-11-10.2"></script>
-<script src="js/path.js?v=2026-11-10.2"></script>
-<script src="js/layout.js?v=2026-11-10.2"></script>
-<script src="js/treePins.js?v=2026-11-10.2"></script>
-<script src="js/form.js?v=2026-11-10.2"></script>
-<script src="js/tree.js?v=2026-11-10.2"></script>
-<script src="js/combos.js?v=2026-11-10.2"></script>
-<script src="js/comboFolders.js?v=2026-11-10.2"></script>
-<script src="js/exports.js?v=2026-11-10.2"></script>
-<script src="js/panels.js?v=2026-11-10.2"></script>
-<script src="js/pan.js?v=2026-11-10.2"></script>
-<script src="js/generator.js?v=2026-11-10.2"></script>
-<script src="js/dictionary.js?v=2026-11-10.2"></script>
-<script src="js/media.js?v=2026-11-10.2"></script>
-<script src="js/mentions.js?v=2026-11-10.2"></script>
-<script src="js/app.js?v=2026-11-10.2"></script>
+<script src="js/runtime-config.js?v=2026-11-13.1"></script>
+<script src="js/constants.js?v=2026-11-13.1"></script>
+<script src="js/state.js?v=2026-11-13.1"></script>
+<script src="js/beat.js?v=2026-11-13.1"></script>
+<script src="js/movements.js?v=2026-11-13.1"></script>
+<script src="js/preps.js?v=2026-11-13.1"></script>
+<script src="js/picker.js?v=2026-11-13.1"></script>
+<script src="js/nodes.js?v=2026-11-13.1"></script>
+<script src="js/path.js?v=2026-11-13.1"></script>
+<script src="js/layout.js?v=2026-11-13.1"></script>
+<script src="js/treePins.js?v=2026-11-13.1"></script>
+<script src="js/form.js?v=2026-11-13.1"></script>
+<script src="js/tree.js?v=2026-11-13.1"></script>
+<script src="js/combos.js?v=2026-11-13.1"></script>
+<script src="js/comboFolders.js?v=2026-11-13.1"></script>
+<script src="js/exports.js?v=2026-11-13.1"></script>
+<script src="js/panels.js?v=2026-11-13.1"></script>
+<script src="js/pan.js?v=2026-11-13.1"></script>
+<script src="js/generator.js?v=2026-11-13.1"></script>
+<script src="js/dictionary.js?v=2026-11-13.1"></script>
+<script src="js/media.js?v=2026-11-13.1"></script>
+<script src="js/mentions.js?v=2026-11-13.1"></script>
+<script src="js/sync.js?v=2026-11-13.1"></script>
+<script src="js/drive.js?v=2026-11-13.1"></script>
+<script src="js/account.js?v=2026-11-13.1"></script>
+<script src="js/app.js?v=2026-11-13.1"></script>
 </body>
 </html>

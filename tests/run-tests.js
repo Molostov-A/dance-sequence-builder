@@ -54,8 +54,16 @@ copyDir(path.join(projectRoot, 'css'), path.join(tmpDir, 'css'));
 copyDir(path.join(projectRoot, 'js'), path.join(tmpDir, 'js'));
 fs.copyFileSync(path.join(projectRoot, 'index.html'), path.join(tmpDir, 'index.html'));
 
-const suite = fs.readFileSync(path.join(__dirname, 'test-suite.js'), 'utf8');
+const suite = fs.readFileSync(path.join(__dirname, 'drive-suite.js'), 'utf8') + '\n' +
+  fs.readFileSync(path.join(__dirname, 'test-suite.js'), 'utf8');
 let html = fs.readFileSync(path.join(tmpDir, 'index.html'), 'utf8');
+// Необязательный реальный файл проверяется в изолированном профиле и не
+// копируется в репозиторий. Экранирование < не даёт JSON закрыть script.
+if (process.env.DANCE_IMPORT_FIXTURE) {
+  const fixture = JSON.parse(fs.readFileSync(process.env.DANCE_IMPORT_FIXTURE, 'utf8'));
+  html = html.replace('</body>', '<script>window.userImportFixture=' +
+    JSON.stringify(fixture).replace(/</g, '\\u003c') + ';</script>\n</body>');
+}
 html = html.replace('</body>', '<script>\n' + suite + '\n</script>\n</body>');
 fs.writeFileSync(path.join(tmpDir, 'index.html'), html, 'utf8');
 

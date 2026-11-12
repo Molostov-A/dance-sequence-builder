@@ -1,4 +1,4 @@
-(function () {
+(async function () {
   var R = { ok: 0, fail: 0, cases: [] };
   function check(name, fn) {
     try {
@@ -687,6 +687,215 @@
       return !state.comboDescriptions[delKey];
     });
 
+    // --- Импорт: ошибки не меняют память и сохранённый JSON ---
+    var realAlert = window.alert;
+    var notices = [];
+    window.alert = function (message) { notices.push(message); };
+    var beforeImport = state;
+    var beforeRaw = localStorage.getItem(STORAGE_KEY);
+    check('битый JSON сохраняет прежние данные', function () {
+      return !applyImportedJson('{') && state === beforeImport && localStorage.getItem(STORAGE_KEY) === beforeRaw;
+    });
+    check('неверные типы основных полей отклоняются', function () {
+      return [null, [], { movements: {}, nodes: {}, roots: [] }, { movements: [], nodes: [], roots: [] }]
+        .every(function (data) { return !applyImportedJson(JSON.stringify(data)) && state === beforeImport; });
+    });
+    function importFixture() {
+      return { movements: [{ id: 7, name: 'Импорт' }], roots: [1], nodes: {
+        1: { id: 1, movementId: 7, parentId: null, beat: 1, length: 4 },
+        2: { id: 2, movementId: 7, parentId: 1, beat: 5, length: 4 }
+      } };
+    }
+    check('несуществующее движение отклоняется без замены состояния', function () {
+      var d = importFixture(); d.nodes[2].movementId = 999;
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('несуществующий родитель отклоняется', function () {
+      var d = importFixture(); d.nodes[2].parentId = 999;
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('цикл родителей отклоняется', function () {
+      var d = importFixture(); d.nodes[1].parentId = 2;
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('некорректные текстовые сегменты отклоняются', function () {
+      var d = importFixture(); d.movements[0].nameSegments = {};
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('недопустимые счёты и длительности отклоняются', function () {
+      var d = importFixture(); d.nodes[2].length = 3;
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('разрыв счётов между родителем и ребёнком отклоняется', function () {
+      var d = importFixture(); d.nodes[2].beat = 9;
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport;
+    });
+    check('отмена импорта не меняет данные', function () {
+      window.confirm = function () { return false; };
+      var result = applyImportedJson(JSON.stringify(importFixture()));
+      window.confirm = function () { return true; };
+      return !result && state === beforeImport && localStorage.getItem(STORAGE_KEY) === beforeRaw;
+    });
+    check('нормализация восстанавливает индексы и счётчики', function () {
+      var d = importFixture(); d.roots = [2, 1, 1, 999]; d.nodeOrder = [2, 2, 999]; d.nextNodeId = 1; d.nextMovId = 1;
+      d = prepareState(d);
+      return d.roots.join(',') === '1' && d.nodeOrder.join(',') === '2,1' && d.nextNodeId === 3 && d.nextMovId === 8;
+    });
+    check('импорт старого файла восстанавливает раздел и очищает генератор', function () {
+      toggleTreeView('all');
+      genSequences = [[{ movementId: 999, beat: 1, length: 4 }]];
+      return applyImportedJson('\uFEFF' + JSON.stringify(importFixture())) && state.currentView === 'tree'
+        && q('#view-tree').classList.contains('active') && q('#btnViewPath').classList.contains('active')
+        && !q('#btnViewAll').classList.contains('active') && genSequences.length === 0;
+    });
+    check('неизвестный раздел переключается на дерево', function () {
+      setView('missing'); return state.currentView === 'tree' && qa('.view.active').length === 1;
+    });
+    check('загрузка использует общую нормализацию и сохраняет активный путь', function () {
+      state.activePath = [1, 2]; state.nextNodeId = 1; saveState();
+      var loaded = loadState();
+      return loaded.nextNodeId === 3 && loaded.activePath.join(',') === '1,2' && loaded.currentView === 'tree';
+    });
+    state.nextNodeId = 3; saveState();
+    beforeImport = state; beforeRaw = localStorage.getItem(STORAGE_KEY);
+    var realSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); };
+    check('ошибка сохранения возвращает false и показывает плашку', function () {
+      return saveState() === false && !q('#storageBanner').classList.contains('hidden');
+    });
+    check('при отказе хранилища импорт откатывается', function () {
+      var d = importFixture(); d.movements[0].name = 'Не сохранять';
+      return !applyImportedJson(JSON.stringify(d)) && state === beforeImport
+        && localStorage.getItem(STORAGE_KEY) === beforeRaw && !q('#storageBanner').classList.contains('hidden');
+    });
+    Storage.prototype.setItem = realSetItem;
+    check('успешная повторная запись убирает плашку', function () {
+      return saveState() === true && q('#storageBanner').classList.contains('hidden');
+    });
+    var realRender = render;
+    var renderCount = 0;
+    render = function () { if (++renderCount === 1) throw new Error('render failed'); realRender(); };
+    check('ошибка отрисовки импорта не затирает сохранённый JSON', function () {
+      return !applyImportedJson(JSON.stringify(importFixture())) && state === beforeImport
+        && localStorage.getItem(STORAGE_KEY) === beforeRaw;
+    });
+    render = realRender;
+    check('генератор очищается после изменения исходных данных', function () {
+      resetGeneratedSequences(); genSequences = [[{ movementId: 7, beat: 1, length: 4 }]];
+      addMovement('Новое'); return genSequences.length === 0;
+    });
+    check('смена раздела и раскладки не очищает генератор', function () {
+      resetGeneratedSequences(); genSequences = [[{ movementId: 7, beat: 1, length: 4 }]];
+      setView('generator'); state.treePins.nodes[1] = { dx: 60, dy: 40 }; render();
+      return genSequences.length === 1;
+    });
+    check('добавление устаревшей связки не создаёт битые узлы', function () {
+      genSequences = [[{ movementId: 999, beat: 1, length: 4 }]];
+      var count = Object.keys(state.nodes).length; expandSequenceToTree(0);
+      return Object.keys(state.nodes).length === count && genSequences.length === 0;
+    });
+    check('корректная связка на 32 счёта добавляется в дерево', function () {
+      resetGeneratedSequences();
+      genSequences = [Array.from({ length: 8 }, function (_, i) { return { movementId: 7, beat: i * 4 + 1, length: 4 }; })];
+      var count = Object.keys(state.nodes).length; expandSequenceToTree(0);
+      return Object.keys(state.nodes).length === count + 8 && genSequences.length === 0;
+    });
+
+    // --- Сетевой импорт: реальный код, детерминированные ответы сервера ---
+    var driveUrl = 'https://drive.google.com/file/d/test-file/view?usp=drive_link&resourcekey=key';
+    check('ссылка Drive преобразуется в CORS-адрес с resourcekey', function () {
+      var u = new URL(normalizeImportUrl(driveUrl));
+      return u.origin === 'https://drive.usercontent.google.com' && u.pathname === '/download'
+        && u.searchParams.get('id') === 'test-file' && u.searchParams.get('resourcekey') === 'key';
+    });
+    check('Drive /uc и /open поддерживаются', function () {
+      return ['/uc?id=test-file', '/open?id=test-file'].every(function (path) {
+        return new URL(normalizeImportUrl('https://drive.google.com' + path)).searchParams.get('id') === 'test-file';
+      });
+    });
+    check('опасные протоколы и неверные URL отклоняются', function () {
+      return ['javascript:alert(1)', 'file:///test.json', 'bad url', 'https://user:password@example.com/a.json'].every(function (url) {
+        try { normalizeImportUrl(url); return false; } catch (e) { return true; }
+      });
+    });
+    var realFetch = window.fetch;
+    function response(text, status, type) {
+      return { ok: status === 200, status: status, headers: new Headers({ 'content-type': type || 'application/json' }),
+        text: async function () { return text; } };
+    }
+    function prepareUrlImport(url) { openImportModal(); showImportUrlStep(); q('#importUrlInput').value = url || driveUrl; }
+    var fetchUrl, fetchOptions;
+    window.fetch = async function (url, opts) { fetchUrl = url; fetchOptions = opts; return response(JSON.stringify(importFixture()), 200); };
+    prepareUrlImport();
+    var urlSuccess = await importFromUrl();
+    check('импорт Drive применяет JSON и закрывает окно', function () {
+      return urlSuccess && !q('#importModal').classList.contains('open') && state.movements[0].id === 7
+        && fetchOptions.credentials === 'omit' && fetchUrl.indexOf('drive.usercontent.google.com/download') > 0;
+    });
+    beforeImport = state; beforeRaw = localStorage.getItem(STORAGE_KEY);
+    window.fetch = async function () { return response('<html>Sign in</html>', 200, 'text/html'); };
+    prepareUrlImport(); await importFromUrl();
+    check('HTML вместо JSON показывает объяснение и запасной путь', function () {
+      return state === beforeImport && q('#importUrlError').textContent.includes('вместо JSON')
+        && !q('#importUrlFallback').classList.contains('hidden') && !q('#btnImportFetch').disabled;
+    });
+    window.fetch = async function () { return response('', 403); };
+    prepareUrlImport(); await importFromUrl();
+    check('HTTP 403 не заменяет данные', function () {
+      return state === beforeImport && q('#importUrlError').textContent.includes('403') && localStorage.getItem(STORAGE_KEY) === beforeRaw;
+    });
+    window.fetch = async function () { throw new TypeError('Failed to fetch'); };
+    prepareUrlImport(); await importFromUrl();
+    check('сетевая ошибка предлагает скачивание и выбор файла', function () {
+      return q('#importUrlError').textContent.includes('Google Диск') && !q('#importUrlFallback').classList.contains('hidden')
+        && q('#importDownloadLink').href.includes('drive.usercontent.google.com');
+    });
+    prepareUrlImport('https://example.com/data.json'); await importFromUrl();
+    check('ошибка другого сервера не приписывается Google Диску', function () {
+      return q('#importUrlError').textContent.includes('сеть недоступна') && !q('#importUrlError').textContent.includes('Google Диск');
+    });
+    var resolveFetch, requests = 0;
+    window.fetch = function () { requests++; return new Promise(function (resolve) { resolveFetch = resolve; }); };
+    prepareUrlImport(); var pendingImport = importFromUrl();
+    var duplicate = await importFromUrl();
+    check('повторный клик не запускает второй запрос', function () { return requests === 1 && duplicate === false && q('#btnImportFetch').disabled; });
+    showImportOptionsStep();
+    resolveFetch(response(JSON.stringify({ movements: [], nodes: {}, roots: [] }), 200));
+    await pendingImport;
+    check('ответ после отмены не применяется', function () { return state === beforeImport && !q('#btnImportFetch').disabled; });
+    window.fetch = function (url, opts) { return new Promise(function (_, reject) {
+      opts.signal.addEventListener('abort', function () { reject(new DOMException('aborted', 'AbortError')); });
+    }); };
+    var realSetTimeout = window.setTimeout;
+    window.setTimeout = function (fn, ms) { return realSetTimeout(fn, ms === IMPORT_URL_TIMEOUT ? 0 : ms); };
+    prepareUrlImport(); await importFromUrl();
+    window.setTimeout = realSetTimeout;
+    check('тайм-аут снимает блокировку и сохраняет данные', function () {
+      return state === beforeImport && q('#importUrlError').textContent.includes('слишком много времени') && !q('#btnImportFetch').disabled;
+    });
+    window.fetch = realFetch;
+    closeImportModal();
+    openImportModal();
+    var appliedByReader = await new Promise(function (resolve) {
+      var originalApply = applyImportedJson;
+      applyImportedJson = function (text) {
+        applyImportedJson = originalApply;
+        var applied = originalApply(text); resolve(applied); return applied;
+      };
+      importJson({ target: { files: [new File([JSON.stringify(importFixture())], 'download.json', { type: 'application/json' })], value: 'file' } });
+    });
+    check('локальный файл читается через FileReader и закрывает окно после успеха', function () {
+      return appliedByReader && !q('#importModal').classList.contains('open') && state.movements[0].id === 7;
+    });
+    await runDriveTests(check);
+    if (window.userImportFixture) {
+      check('пользовательский файл импортируется целиком', function () {
+        return applyImportedJson(JSON.stringify(window.userImportFixture))
+          && state.movements.length === window.userImportFixture.movements.length
+          && Object.keys(state.nodes).length === Object.keys(window.userImportFixture.nodes).length;
+      });
+    }
+    window.alert = realAlert;
     window.confirm = realConfirm;
     document.title = 'TESTRESULT=' + JSON.stringify(R);
   } catch (e) {

@@ -17,6 +17,42 @@
   border-radius: 4px; resize: none;
 }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.import-modal { overflow-y: auto; }
+#importUrlError { overflow-wrap: anywhere; }
+#importUrlFallback a { display: block; margin-bottom: 8px; }
+#btnImportDownloaded { max-width: 100%; white-space: normal; }
+.drive-modal { width: 540px; overflow-y: auto; }
+.drive-file-link { display: block; overflow-wrap: anywhere; margin: 4px 0; }
+.drive-file-link.hidden { display: none; }
+.drive-status { font-weight: 600; margin: 6px 0; }
+.drive-message { font-size: 13px; overflow-wrap: anywhere; margin: 0 0 10px; }
+.drive-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.drive-actions .btn { white-space: normal; }
+.drive-modal .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.drive-conflict { background: #fff3cd; padding: 10px; margin-top: 12px; border-radius: 5px; }
+.drive-conflict p { margin: 0 0 8px; font-size: 13px; }
+.drive-settings { margin-top: 14px; border-top: 1px solid #ddd; padding-top: 10px; }
+.drive-settings summary { cursor: pointer; margin-bottom: 8px; }
+.drive-settings label { display: block; font-size: 12px; margin: 8px 0 4px; }
+.drive-settings input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+.drive-settings .btn { margin-top: 10px; }
+.drive-setup-steps { font-size: 12px; padding-left: 20px; overflow-wrap: anywhere; }
+.drive-setup-steps li { margin-bottom: 5px; }
+.account-modal { width: 480px; overflow-y: auto; }
+.account-modal input { width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 4px; margin: 4px 0 8px; font-size: 16px; }
+.account-modal label { display: block; font-size: 12px; }
+.account-modal .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.account-email-hint { margin-top: 14px !important; }
+.account-status { font-weight: 600; margin: 6px 0; }
+.account-message { font-size: 13px; overflow-wrap: anywhere; margin: 0 0 12px; }
+.account-email { overflow-wrap: anywhere; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-actions .btn { white-space: normal; }
+.account-conflict { background: #fff3cd; padding: 10px; margin-top: 12px; border-radius: 5px; }
+.account-conflict p { font-size: 13px; margin: 0 0 8px; }
+.account-backup { margin-top: 16px; padding-top: 10px; border-top: 1px solid #ddd; }
+.account-backup summary { cursor: pointer; margin-bottom: 8px; }
+#accountCodeRow { margin-top: 12px; }
 
 .movement-modal {
   width: 420px; max-height: 90vh; overflow-y: auto;

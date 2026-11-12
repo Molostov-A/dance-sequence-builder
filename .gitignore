@@ -1,2 +1,8 @@
-.vscode
-.kilo
+server/node_modules/
+server/.env
+server/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.vscode/
+.kilo/

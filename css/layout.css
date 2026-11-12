@@ -82,3 +82,12 @@ body:not(.nav-open) .sidebar { display: none; }
   padding: 6px 12px; font-size: 13px; text-align: center;
 }
 .stale-banner.hidden { display: none; }
+.storage-banner {
+  flex-shrink: 0; background: #fff3cd; color: #7a5b00;
+  border-bottom: 1px solid #f0d58a; padding: 8px 12px;
+  font-size: 13px; overflow-wrap: anywhere;
+}
+.storage-banner button { margin: 4px; cursor: pointer; }
+.drive-sync-status { max-width: 190px; font-size: 11px; overflow-wrap: anywhere; }
+.account-sync-status { max-width: 170px; font-size: 11px; overflow-wrap: anywhere; }
+#btnAccount { max-width: 230px; overflow: hidden; text-overflow: ellipsis; }

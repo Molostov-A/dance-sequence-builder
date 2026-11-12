@@ -1,0 +1,90 @@
+name: Deploy server and GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dance-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --prefix server
+      - run: npm test --prefix server
+      - run: node tests/run-tests.js
+      - run: node tests/server-browser-smoke.mjs
+      - run: SMOKE_CROSS_ORIGIN=1 node tests/server-browser-smoke.mjs
+
+  deploy-server:
+    needs: checks
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Prepare release
+        run: |
+          tar -czf "$RUNNER_TEMP/release.tar.gz" \
+            index.html js css img server tests compose.yaml compose.nginx.yaml \
+            .dockerignore README.md SERVER_SETUP.md GOOGLE_DRIVE_SETUP.md AUTO_DEPLOY.md AGENTS.md
+      - name: Deploy through restricted SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '78.17.57.32' }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_SSH_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$RUNNER_TEMP/deploy_key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
+          chmod 600 "$RUNNER_TEMP/deploy_key" "$RUNNER_TEMP/known_hosts"
+          ssh -i "$RUNNER_TEMP/deploy_key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" \
+            "root@$DEPLOY_HOST" "deploy $GITHUB_SHA" < "$RUNNER_TEMP/release.tar.gz"
+
+  deploy-pages:
+    needs: deploy-server
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@v6
+      - name: Package static client only
+        run: |
+          mkdir _site
+          cp index.html _site/
+          cp -R js css img _site/
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - name: Publish Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

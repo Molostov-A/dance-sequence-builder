@@ -1,0 +1,8 @@
+# Для VPS с уже работающим nginx. Запускать вместе с compose.yaml.
+services:
+  app:
+    ports:
+      - "127.0.0.1:8088:8080"
+  proxy:
+    profiles:
+      - standalone-proxy

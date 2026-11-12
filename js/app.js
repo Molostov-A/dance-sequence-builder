@@ -1,5 +1,7 @@
 function render() {
   ensureActivePathValid();
+  document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
+  document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
   // Закрепления и свёрнутые препы удалённых узлов/связей отбрасываются
   normalizeTreePins(state);
   renderMovements();
@@ -16,12 +18,16 @@ function render() {
 document.getElementById('btnAddRoot').addEventListener('click', addRoot);
 document.getElementById('btnExportCombos').addEventListener('click', exportCombos);
 document.getElementById('btnExportAll').addEventListener('click', exportAll);
+document.getElementById('btnStorageExport').addEventListener('click', exportAll);
+document.getElementById('btnStorageRetry').addEventListener('click', saveState);
 document.getElementById('btnImport').addEventListener('click', () => {
   openImportModal();
 });
 document.getElementById('importFile').addEventListener('change', importJson);
 document.getElementById('btnImportLocal').addEventListener('click', () => {
-  closeImportModal();
+  document.getElementById('importFile').click();
+});
+document.getElementById('btnImportDownloaded').addEventListener('click', () => {
   document.getElementById('importFile').click();
 });
 document.getElementById('btnImportUrl').addEventListener('click', showImportUrlStep);
@@ -236,8 +242,6 @@ updateNavPinUi();
 if (navIsPinned() && !isNarrowScreen()) openNav();
 
 ensureActivePathValid();
-document.getElementById('btnViewPath').classList.toggle('active', state.treeViewMode === 'path');
-document.getElementById('btnViewAll').classList.toggle('active', state.treeViewMode === 'all');
 // Страница и скрипты из разных версий (старые файлы из кэша) — предупредить
 function checkAppVersion() {
   const meta = document.querySelector('meta[name="app-version"]');
@@ -245,11 +249,13 @@ function checkAppVersion() {
   document.getElementById('staleBanner').classList.toggle('hidden', pageVersion === APP_VERSION);
 }
 checkAppVersion();
+initDriveSync();
 initMentions();
 initPrepTooltip();
 initLinkControls();
 pruneMentions();
 render();
+initAccount();
 
 window.addEventListener('resize', () => {
   if (openFormState) positionForm();

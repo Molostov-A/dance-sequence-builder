@@ -1,6 +1,27 @@
 const GEN_MAX_COMBOS = 1000;
 let genSequences = [];
 let genSelectedIdx = -1;
+let genSourceSignature = null;
+
+function generatorSourceSignature() {
+  return JSON.stringify([
+    state.movements.map(m => m.id), state.roots, state.nodeOrder,
+    state.nodeOrder.map(id => {
+      const n = state.nodes[id];
+      return n ? [n.id, n.movementId, n.parentId, n.beat, n.length] : null;
+    }), state.merges
+  ]);
+}
+function resetGeneratedSequences() {
+  genSequences = [];
+  genSelectedIdx = -1;
+  genSourceSignature = generatorSourceSignature();
+}
+function syncGeneratedSequences() {
+  const signature = generatorSourceSignature();
+  if (genSourceSignature !== null && genSourceSignature !== signature) resetGeneratedSequences();
+  genSourceSignature = signature;
+}
 
 /* ===== Фильтры сгенерированных связок =====
    Как и результаты генерации, живут только в памяти модуля.
@@ -201,17 +222,32 @@ function generateSequences() {
   recurse(1, []);
   genSequences = results;
   genSelectedIdx = -1;
+  genSourceSignature = generatorSourceSignature();
   return results;
 }
 
 function renderGenerator() {
+  syncGeneratedSequences();
   renderGenTree();
   renderGenCombos();
 }
 
 function expandSequenceToTree(idx) {
+  syncGeneratedSequences();
   const seq = genSequences[idx];
   if (!seq || seq.length === 0) return;
+  let beat = 1;
+  const valid = seq.every(n => {
+    if (!getMovement(n.movementId) || n.beat !== beat || !allowedLengths(beat).includes(n.length)) return false;
+    beat += n.length;
+    return true;
+  });
+  if (!valid || beat !== 33) {
+    resetGeneratedSequences();
+    renderGenerator();
+    alert('Связка устарела. Сгенерируйте результаты заново.');
+    return;
+  }
 
   const first = seq[0];
   const id = state.nextNodeId++;

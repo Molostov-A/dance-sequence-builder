@@ -1,0 +1,11 @@
+.git
+.claude
+.codex
+.agents
+.kilo
+.vscode
+server/node_modules
+server/.env
+server/data
+**/*.sqlite*
+tests

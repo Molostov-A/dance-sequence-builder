@@ -1,4 +1,121 @@
+let activeStorageKey = STORAGE_KEY;
 let state = loadState() || initialState();
+let stateSaveSuspended = false;
+
+function isStateRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+function validStateId(value) { return Number.isSafeInteger(value) && value > 0; }
+function normalizeCurrentView(view) {
+  return ['tree', 'library', 'preps', 'combos', 'generator', 'dictionary'].includes(view) ? view : 'tree';
+}
+// Только чистые проверки и миграции: этот путь используется при ранней
+// загрузке state.js, когда beat.js и функции интерфейса ещё не объявлены.
+function prepareState(data) {
+  if (!isStateRecord(data) || !Array.isArray(data.movements)
+    || !isStateRecord(data.nodes) || !Array.isArray(data.roots)) {
+    throw new Error('Ожидаются массивы movements, roots и объект nodes.');
+  }
+  const checkSegments = (item, fields) => fields.forEach(field => {
+    if (item[field] === undefined || item[field] === null) return;
+    if (!Array.isArray(item[field]) || item[field].some(s => !isStateRecord(s)
+      || (s.text !== undefined && typeof s.text !== 'string')
+      || (s.conceptId !== undefined && typeof s.conceptId !== 'string'))) {
+      throw new Error('Некорректные текстовые сегменты: ' + field);
+    }
+  });
+  const checkLibrary = (list, label) => {
+    const ids = new Set(), names = new Set();
+    list.forEach(m => {
+      if (!isStateRecord(m) || !validStateId(m.id) || typeof m.name !== 'string' || !m.name.trim()) {
+        throw new Error('Некорректная запись библиотеки: ' + label);
+      }
+      const name = m.name.trim().toLowerCase();
+      if (ids.has(m.id) || names.has(name)) throw new Error('Повтор ID или названия: ' + label);
+      ids.add(m.id); names.add(name);
+      ['lead', 'follow'].forEach(field => {
+        if (m[field] === undefined || m[field] === null) m[field] = '';
+        if (typeof m[field] !== 'string') throw new Error('Некорректное поле ' + field);
+      });
+      checkSegments(m, ['nameSegments', 'leadSegments', 'followSegments']);
+    });
+    return ids;
+  };
+  const movementIds = checkLibrary(data.movements, 'движения');
+  const nodes = Object.values(data.nodes);
+  Object.keys(data.nodes).forEach(key => {
+    const n = data.nodes[key];
+    if (!isStateRecord(n) || !validStateId(n.id) || String(n.id) !== key
+      || !movementIds.has(n.movementId) || !validStateId(n.beat) || !validStateId(n.length)
+      || (n.parentId !== null && !validStateId(n.parentId))) {
+      throw new Error('Некорректный узел: ' + key);
+    }
+  });
+  // Цвета обхода исключают циклы без рекурсии и повторных обходов длинных веток.
+  const done = new Set();
+  nodes.forEach(n => {
+    const path = new Set();
+    let cur = n;
+    while (cur && !done.has(cur.id)) {
+      if (path.has(cur.id)) throw new Error('Цикл родителей в дереве.');
+      path.add(cur.id);
+      if (cur.parentId === null) break;
+      cur = data.nodes[cur.parentId];
+      if (!cur) throw new Error('У узла отсутствует родитель.');
+    }
+    path.forEach(id => done.add(id));
+  });
+  const order = Array.isArray(data.nodeOrder) ? data.nodeOrder : [];
+  data.nodeOrder = Array.from(new Set(order.filter(id => validStateId(id) && data.nodes[id])
+    .concat(nodes.map(n => n.id))));
+  data.roots = Array.from(new Set(data.roots.filter(id => validStateId(id) && data.nodes[id] && data.nodes[id].parentId === null)
+    .concat(data.nodeOrder.filter(id => data.nodes[id].parentId === null))));
+  const nextId = (value, ids) => {
+    const max = ids.reduce((a, id) => Math.max(a, id), 0);
+    return validStateId(value) && value > max ? value : max + 1;
+  };
+  data.nextNodeId = nextId(data.nextNodeId, nodes.map(n => n.id));
+  data.nextMovId = nextId(data.nextMovId, data.movements.map(m => m.id));
+  const active = Array.isArray(data.activePath) ? data.activePath : [];
+  data.activePath = active.every((id, i) => data.nodes[id]
+    && (i === 0 ? data.roots.includes(id) : data.nodes[id].parentId === active[i - 1])) ? active : [];
+  if (Array.isArray(data.merges)) {
+    const from = new Set();
+    data.merges = data.merges.filter(m => {
+      if (!isStateRecord(m) || !validStateId(m.from) || !validStateId(m.to)
+        || !data.nodes[m.from] || !data.nodes[m.to] || m.from === m.to || from.has(m.from)) return false;
+      from.add(m.from); return true;
+    });
+  } else data.merges = [];
+  normalizeComboVideos(data);
+  if (!Array.isArray(data.concepts)) data.concepts = [];
+  const conceptIds = new Set();
+  data.concepts.forEach(c => {
+    if (!isStateRecord(c) || typeof c.id !== 'string' || !/^w[1-9]\d*$/.test(c.id)
+      || conceptIds.has(c.id) || typeof c.short !== 'string' || !c.short.trim()) {
+      throw new Error('Некорректная запись словаря.');
+    }
+    conceptIds.add(c.id);
+    c.names = Array.isArray(c.names) ? c.names.filter(n => typeof n === 'string') : [];
+    c.definition = typeof c.definition === 'string' ? c.definition : '';
+    c.media = Array.isArray(c.media) ? c.media.filter(m => isStateRecord(m) && typeof m.url === 'string') : [];
+    checkSegments(c, ['definitionSegments']);
+  });
+  data.nextConceptId = nextId(data.nextConceptId, data.concepts.map(c => Number(c.id.slice(1))));
+  ['comboDescriptions', 'comboDescriptionSegments', 'comboFolderLinks'].forEach(field => {
+    if (!isStateRecord(data[field])) data[field] = {};
+  });
+  Object.values(data.comboDescriptionSegments).forEach(segments => checkSegments({ segments }, ['segments']));
+  data.currentView = normalizeCurrentView(data.currentView);
+  if (!['path', 'all'].includes(data.treeViewMode)) data.treeViewMode = 'path';
+  if (typeof data.navPinned !== 'boolean') data.navPinned = true;
+  normalizePreps(data);
+  checkLibrary(data.preps, 'препы');
+  normalizeCollapsedNodes(data);
+  normalizeComboFolders(data);
+  normalizeTreePins(data);
+  return data;
+}
 
 function initialState() {
   return {
@@ -102,7 +219,7 @@ function normalizeTreePins(data) {
 }
 
 function normalizeComboVideos(data) {
-  if (!data.comboVideos || typeof data.comboVideos !== 'object') {
+  if (!isStateRecord(data.comboVideos)) {
     data.comboVideos = {};
     return;
   }
@@ -162,34 +279,39 @@ function normalizePreps(data) {
     if (!valid) n.prepId = null;
   });
 }
+function showStorageError(failed) {
+  const banner = document.getElementById('storageBanner');
+  if (banner) banner.classList.toggle('hidden', !failed);
+}
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  if (stateSaveSuspended) return true;
+  try {
+    localStorage.setItem(activeStorageKey, JSON.stringify(state));
+  } catch (e) {
+    showStorageError(true);
+    return false;
+  }
+  showStorageError(false);
+  // Сбой постановки облачной записи в очередь не меняет результат уже
+  // успешной локальной записи и не должен ломать транзакцию импорта.
+  try { if (typeof onDriveStateSaved === 'function') onDriveStateSaved(); }
+  catch (e) { console.error('Не удалось запланировать облачное сохранение', e); }
+  try { if (typeof onAccountStateSaved === 'function') onAccountStateSaved(); }
+  catch (e) { console.error('Не удалось запланировать серверное сохранение', e); }
+  return true;
 }
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(activeStorageKey);
     if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data.merges) data.merges = [];
-    normalizeComboVideos(data);
-    if (!Array.isArray(data.concepts)) data.concepts = [];
-    if (!data.nextConceptId) data.nextConceptId = 1;
-    if (!data.comboDescriptions || typeof data.comboDescriptions !== 'object') data.comboDescriptions = {};
-    if (!data.comboDescriptionSegments || typeof data.comboDescriptionSegments !== 'object') data.comboDescriptionSegments = {};
-    if (!data.currentView) data.currentView = 'tree';
-    if (typeof data.navPinned !== 'boolean') data.navPinned = true;
-    normalizePreps(data);
-    normalizeCollapsedNodes(data);
-    normalizeComboFolders(data);
-    normalizeTreePins(data);
-    return data;
+    return prepareState(JSON.parse(raw));
   } catch (e) {
     // Не теряем данные молча: сохраняем нечитаемую копию рядом и пишем в консоль.
     // Иначе первое же saveState() затёрло бы их пустым состоянием.
     console.error('Не удалось загрузить сохранённые данные', e);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) localStorage.setItem(STORAGE_KEY + '-broken-' + Date.now(), raw);
+      const raw = localStorage.getItem(activeStorageKey);
+      if (raw) localStorage.setItem(activeStorageKey + '-broken-' + Date.now(), raw);
     } catch (e2) {}
     return null;
   }
@@ -203,6 +325,7 @@ function toggleTreeView(mode) {
   renderTree();
 }
 function setView(view) {
+  view = normalizeCurrentView(view);
   state.currentView = view;
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const el = document.getElementById('view-' + view);
