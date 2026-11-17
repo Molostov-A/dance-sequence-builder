@@ -689,6 +689,7 @@ function renderCardActions(node) {
   };
 
   const replaceBtn = button('⇄', 'Заменить движение', () => replaceMovement(node.id));
+  const lengthBtn = button('◷', 'Изменить длительность движения', () => openNodeLengthPicker(node.id));
 
   const nextBeat = node.beat + node.length;
   const canContinue = allowedLengths(nextBeat).length > 0;
@@ -725,7 +726,7 @@ function renderCardActions(node) {
   const combosBtn = button('≡', 'Показать комбинации с этим движением', () => showCombosForNode(node.id));
   const delBtn = button('✕', 'Удалить', () => deleteNode(node.id), 'danger');
 
-  actions.append(replaceBtn, addBtn, prepBtn, mergeBtn, parentBtn, adoptBtn, combosBtn, delBtn);
+  actions.append(replaceBtn, lengthBtn, addBtn, prepBtn, mergeBtn, parentBtn, adoptBtn, combosBtn, delBtn);
   return actions;
 }
 function renderSpineCard(c) {

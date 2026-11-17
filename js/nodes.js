@@ -125,6 +125,51 @@ function applyReplaceMovement(nodeId, movementId) {
   saveState(); render();
 }
 
+/* Длительность относится к узлу, а не к движению в библиотеке.
+   Сначала проверяем ВСЮ ветку: сдвиг на два счёта может перенести
+   четырёхсчётное движение на позицию, где допустимо только два. */
+function openNodeLengthPicker(nodeId) {
+  const node = state.nodes[nodeId];
+  if (!node) return;
+  openLibraryPicker({
+    title: 'Длительность движения',
+    hint: 'Счёты продолжений сдвинутся вместе с изменением длительности. Недопустимые счёты не будут сохранены.',
+    items: allowedLengths(node.beat).map(length => ({
+      id: length, text: formatBeatNode(node.beat, length), sub: `${length} счёта`
+    })),
+    currentId: node.length, sort: false,
+    onPick: length => changeNodeLength(nodeId, length)
+  });
+}
+
+function changeNodeLength(nodeId, length) {
+  const node = state.nodes[nodeId];
+  if (!node || node.length === length || !allowedLengths(node.beat).includes(length)) return false;
+  const delta = length - node.length;
+  const descendants = collectSubtree(nodeId).filter(id => id !== nodeId);
+  const invalid = descendants.find(id => !allowedLengths(state.nodes[id].beat + delta).includes(state.nodes[id].length));
+  if (invalid !== undefined) {
+    const child = state.nodes[invalid], movement = getMovement(child.movementId);
+    alert(`Нельзя изменить длительность: у продолжения «${movement ? movement.name : '???'}» получится недопустимый счёт (${formatBeatNode(child.beat + delta, child.length)}). Сначала измените длительность этого продолжения.`);
+    return false;
+  }
+  const changed = new Set([nodeId, ...descendants]);
+  const affected = collectCombos().filter(c => c.some(n => changed.has(n.id))
+    && (getComboVideos(c).length || getComboDescription(c) || comboFolderIdsByKey(comboVideoKey(c)).length));
+  if (affected.length && !confirm(`У ${affected.length} комбинац(ий) с этой веткой есть видео, описание или папки. После изменения счётов эти привязки могут потеряться. Продолжить?`)) return false;
+  closeForm();
+  node.length = length;
+  descendants.forEach(id => { state.nodes[id].beat += delta; });
+  state.merges = state.merges.filter(m => {
+    if (!changed.has(m.from) && !changed.has(m.to)) return true;
+    const from = state.nodes[m.from], to = state.nodes[m.to];
+    return from && to && beatInEighth(from.beat + from.length) === beatInEighth(to.beat);
+  });
+  pruneComboVideos(); pruneComboDescriptions();
+  saveState(); render();
+  return true;
+}
+
 /* ===== Смена родителя =====
    Узел переезжает к другому родителю вместе со всеми продолжениями.
    Цель допустима, если продолжение у неё начинается в той же позиции

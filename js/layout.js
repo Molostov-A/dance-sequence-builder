@@ -17,7 +17,7 @@
       в промежуток между двумя крупными карточками, который тоже
       расширяется на PREP_COL.
       Свёрнутый преп (isPrepLinkCollapsed) — круглая метка PREP_MARK; ей
-      хватает промежутка PREP_MARK_COL. Блок/метка лежит поверх линии, но
+      хватает обычного промежутка между карточками. Блок/метка лежит поверх линии, но
       колонка детей всегда отодвинута ровно настолько, чтобы он не наезжал
       на карточки. У каждого блока есть subX — x короткой шины группы.
    6) Ручные закрепления (state.treePins, только полное дерево) применяются
@@ -32,7 +32,7 @@ function prepChipGeometry(parentId, prepId) {
 }
 
 // На сколько отодвинуть колонку детей: под развёрнутый блок — PREP_COL,
-// если все препы колонки свёрнуты — только под метку.
+// если все препы колонки свёрнуты — колонка не отодвигается.
 function prepColumnExtra(parentId, nodes) {
   let extra = 0;
   nodes.forEach(n => {
@@ -50,7 +50,10 @@ function prepColumnExtra(parentId, nodes) {
 function centerPrepChip(chip, busX) {
   const free = chip.colX - busX;
   let x = busX + (free - chip.w) / 2;
-  x = Math.max(busX + 4, Math.min(x, chip.colX - chip.w - 8));
+  // В узком стеке братьев метка может стоять левее шины. Она остаётся
+  // на обычной связи, не залезая на карточку и не раздвигая колонку.
+  x = chip.collapsed ? Math.min(x, chip.colX - chip.w - 6)
+    : Math.max(busX + 4, Math.min(x, chip.colX - chip.w - 8));
   chip.x = x;
   chip.subX = (x + chip.w + chip.colX) / 2;
 }
@@ -246,6 +249,46 @@ function countAllDescendants(nodeId) {
 const ROOT_V_GAP = 40;
 const LEVEL_H_GAP = 80;
 
+/* Общие колонки по абсолютному счёту, а не по числу предков. Шаг в два
+   счёта вмещает крупную карточку даже при переключении активного пути.
+   Развёрнутые препы расширяют общий интервал, поэтому одинаковые счёты
+   остаются на одной вертикали и при разном наборе препов в ветках.
+   Каждый закреплённый узел начинает независимую сетку: его входящая
+   связь и потомки не меняют колонки остальных деревьев. Ручные смещения
+   накладываются после двухпроходной автоматической раскладки. */
+function fullTreeBeatColumns() {
+  const pins = (state.treePins || {}).nodes || {};
+  const groupOf = new Map(), groups = new Map();
+  const visit = (id, group) => {
+    if (pins[id]) group = id;
+    groupOf.set(id, group);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(state.nodes[id]);
+    getVisibleChildren(id).forEach(ch => visit(ch.id, group));
+  };
+  state.roots.forEach(id => visit(id, null));
+  const columns = new Map();
+  groups.forEach(nodes => {
+    const beats = [...new Set(nodes.map(n => n.beat))].sort((a, b) => a - b);
+    const xForBeat = new Map();
+    const extra = new Map();
+    nodes.forEach(n => {
+      const children = getVisibleChildren(n.id).filter(ch => groupOf.get(ch.id) === groupOf.get(n.id));
+      if (children.length) {
+        const beat = children[0].beat;
+        extra.set(beat, Math.max(extra.get(beat) || 0, prepColumnExtra(n.id, children)));
+      }
+    });
+    let x = PAD;
+    beats.forEach((beat, i) => {
+      if (i) x += (beat - beats[i - 1]) / 2 * (CARD_W + LEVEL_H_GAP) + (extra.get(beat) || 0);
+      xForBeat.set(beat, x);
+    });
+    nodes.forEach(n => columns.set(n.id, xForBeat.get(n.beat)));
+  });
+  return columns;
+}
+
 function computeFullTreeLayout(overrides) {
   const O = overrides || {};
   const hFor = O.heightFor || (() => CARD_H);
@@ -254,6 +297,7 @@ function computeFullTreeLayout(overrides) {
   const cards = [];
   const preps = [];
   const onPath = new Set(state.activePath || []);
+  const beatColumns = fullTreeBeatColumns();
 
   function isOnPath(id) { return onPath.has(id); }
 
@@ -262,9 +306,10 @@ function computeFullTreeLayout(overrides) {
   // Рекурсивно вычисляет layout поддерева.
   // Возвращает { elements, preps, width, height }
   // elements — массив {node, x, y, w, h, isRoot, isOnPath}; elements[0] — сам узел
-  function layoutSubtree(nodeId, x, y) {
+  function layoutSubtree(nodeId, y) {
     const node = state.nodes[nodeId];
     if (!node) return { elements: [], preps: [], width: 0, height: 0 };
+    const x = beatColumns.get(nodeId);
 
     // Свёрнутый узел раскладывается как лист: поддерево не занимает места.
     const children = getVisibleChildren(nodeId);
@@ -280,11 +325,10 @@ function computeFullTreeLayout(overrides) {
       };
     }
 
-    const childX = x + w + LEVEL_H_GAP + prepColumnExtra(nodeId, children);
     let childResults = [];
     let totalChildH = 0;
     children.forEach((ch, i) => {
-      const res = layoutSubtree(ch.id, childX, y + totalChildH);
+      const res = layoutSubtree(ch.id, y + totalChildH);
       childResults.push(res);
       totalChildH += res.height;
       if (i < children.length - 1) totalChildH += MINI_GAP;
@@ -295,7 +339,7 @@ function computeFullTreeLayout(overrides) {
 
     let maxChildRight = 0;
     childResults.forEach(r => {
-      maxChildRight = Math.max(maxChildRight, childX + r.width);
+      maxChildRight = Math.max(maxChildRight, r.elements[0].x + r.width);
     });
     const subtreeW = Math.max(w, (maxChildRight - x));
 
@@ -303,7 +347,7 @@ function computeFullTreeLayout(overrides) {
     childResults.forEach(r => elements.push(...r.elements));
 
     const childItems = childResults.map(r => r.elements[0]);
-    const subPreps = prepChipsForColumn(nodeId, childItems, childX, 'full', x + w + BUS_OFFSET);
+    const subPreps = prepChipsForColumn(nodeId, childItems, Math.min(...childItems.map(c => c.x)), 'full', x + w + BUS_OFFSET);
     childResults.forEach(r => subPreps.push(...r.preps));
 
     return { elements, preps: subPreps, width: subtreeW, height: Math.max(h, childrenBlockH) };
@@ -311,7 +355,7 @@ function computeFullTreeLayout(overrides) {
 
   let curY = PAD;
   state.roots.forEach((rootId, i) => {
-    const res = layoutSubtree(rootId, PAD, curY);
+    const res = layoutSubtree(rootId, curY);
     // Помечаем корень
     res.elements.forEach(el => {
       if (el.node.id === rootId) el.isRoot = true;
@@ -387,8 +431,9 @@ function applyTreePins(cards, preps) {
       chip.x += s.dx; chip.y += s.dy;
     }
     chip.subX += chip.x - autoX;
-    // Колонка детей по умолчанию едет вместе с родителем
-    chip.colX += s.dx;
+    // Закреплённый ребёнок может начать отдельную сетку, не совпадающую
+    // с переносом родителя. Блок препа привязываем к итоговым карточкам.
+    chip.colX = Math.min(...chip.members.map(id => byId.get(id)).filter(Boolean).map(c => c.x));
   });
 
   // Шина не уходит правее своих отводов: иначе линии к детям и препам

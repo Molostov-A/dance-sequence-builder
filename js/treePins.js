@@ -98,8 +98,8 @@ function removePrepFromLink(parentId, prepId) {
   const children = getChildren(parentId).filter(c => c.prepId === prepId);
   if (children.length === 0) return;
   const prep = getPrep(prepId);
-  if (children.length > 1
-    && !confirm(`Убрать преп «${prep ? prep.name : '???'}» со связей к ${children.length} продолжениям?`)) return;
+  const target = children.length === 1 ? 'с этой связи' : `со связей к ${children.length} продолжениям`;
+  if (!confirm(`Убрать преп «${prep ? prep.name : '???'}» ${target}? Сам преп останется в библиотеке.`)) return;
   children.forEach(c => { c.prepId = null; });
   saveState(); render();
 }

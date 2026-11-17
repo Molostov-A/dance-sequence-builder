@@ -887,6 +887,99 @@
     check('локальный файл читается через FileReader и закрывает окно после успеха', function () {
       return appliedByReader && !q('#importModal').classList.contains('open') && state.movements[0].id === 7;
     });
+    // Изменение длительности и сетка счётов с независимыми закреплениями.
+    var savedTreeState = state;
+    state = initialState();
+    state.movements = [{ id: 1, name: 'Движение', lead: '', follow: '' }];
+    state.nodes = {
+      1: { id: 1, movementId: 1, parentId: null, beat: 1, length: 4, prepId: null },
+      2: { id: 2, movementId: 1, parentId: 1, beat: 5, length: 4, prepId: null },
+      3: { id: 3, movementId: 1, parentId: null, beat: 1, length: 2, prepId: null },
+      4: { id: 4, movementId: 1, parentId: 3, beat: 3, length: 2, prepId: null },
+      5: { id: 5, movementId: 1, parentId: 4, beat: 5, length: 2, prepId: null },
+      6: { id: 6, movementId: 1, parentId: 5, beat: 7, length: 2, prepId: null }
+    };
+    state.roots = [1, 3]; state.nodeOrder = [1, 2, 3, 4, 5, 6]; state.activePath = [1, 2];
+    state.treeViewMode = 'all';
+    render();
+    check('одинаковый счёт выровнен при разном числе движений в ветках', function () {
+      return lastFullLayout.byId.get(2).x === lastFullLayout.byId.get(5).x;
+    });
+    check('кнопка длительности открывает выбор 4 и 2 счётов', function () {
+      q('.node-card.active button[title="Изменить длительность движения"]').click();
+      var ok = libraryPickerState.items.length === 2;
+      closeLibraryPicker(); return ok;
+    });
+    state.preps = [{ id: 1, name: 'Преп', lead: '', follow: '' }];
+    state.nodes[2].prepId = 1;
+    render();
+    check('развёрнутый преп сохраняет общую колонку одинаковых счётов', function () {
+      return lastFullLayout.byId.get(2).x === lastFullLayout.byId.get(5).x;
+    });
+    state.collapsedPrepLinks = ['1:1']; render();
+    var markedX = lastFullLayout.byId.get(2).x;
+    state.nodes[2].prepId = null; render();
+    check('свёрнутый преп не удлиняет связь относительно связи без препа', function () {
+      return lastFullLayout.byId.get(2).x === markedX;
+    });
+    state.nodes[2].prepId = 1;
+    var confirmations = 0;
+    window.confirm = function () { confirmations++; return false; };
+    setNodePrep(2, null);
+    check('отмена снятия препа с одной связи сохраняет преп', function () {
+      return confirmations === 1 && state.nodes[2].prepId === 1;
+    });
+    removePrepFromLink(1, 1);
+    check('снятие препа с группы из одной связи тоже требует подтверждения', function () {
+      return confirmations === 2 && state.nodes[2].prepId === 1;
+    });
+    window.confirm = function () { return true; };
+    setNodePrep(2, null);
+    check('подтверждение снимает преп со связи, сохраняя библиотеку', function () {
+      return state.nodes[2].prepId === null && state.preps.length === 1;
+    });
+    state.treePins.nodes[4] = { dx: 700, dy: 100 };
+    render();
+    var pinnedX = lastFullLayout.byId.get(4).x, descendantX = lastFullLayout.byId.get(5).x;
+    check('закреплённая ветка имеет свою точку отсчёта', function () {
+      return pinnedX === lastFullLayout.byId.get(3).x + 700
+        && descendantX === pinnedX + CARD_W + LEVEL_H_GAP
+        && descendantX !== lastFullLayout.byId.get(2).x;
+    });
+    state.nodes[2].prepId = 1; state.collapsedPrepLinks = []; render();
+    check('расширение общей сетки не сдвигает закреплённую ветку', function () {
+      return lastFullLayout.byId.get(4).x === pinnedX && lastFullLayout.byId.get(5).x === descendantX;
+    });
+    state.treePins.nodes[5] = { dx: 900, dy: 60 }; render();
+    check('вложенное закрепление начинает ещё одну независимую сетку', function () {
+      return lastFullLayout.byId.get(5).x === pinnedX + 900
+        && lastFullLayout.byId.get(6).x === pinnedX + 900 + CARD_W + LEVEL_H_GAP;
+    });
+    state.treePins.nodes = {};
+    check('увеличение длительности сдвигает всю последующую ветку', function () {
+      return changeNodeLength(3, 4) && state.nodes[4].beat === 5 && state.nodes[5].beat === 7 && state.nodes[6].beat === 9;
+    });
+    check('уменьшение длительности возвращает счёты продолжений', function () {
+      return changeNodeLength(3, 2) && state.nodes[4].beat === 3 && state.nodes[6].beat === 7;
+    });
+    state.nodes[5].length = 4; delete state.nodes[6]; state.nodeOrder.pop();
+    var invalidBefore = JSON.stringify(state), lengthAlert = window.alert, alerted = false;
+    window.alert = function () { alerted = true; };
+    check('недопустимый сдвиг продолжения отклоняется без частичных изменений', function () {
+      return !changeNodeLength(3, 4) && alerted && JSON.stringify(state) === invalidBefore;
+    });
+    window.alert = lengthAlert;
+    state.nodes[5].length = 2;
+    state.comboDescriptions = {};
+    var lengthCombo = collectCombos().find(function (c) { return c.some(function (n) { return n.id === 3; }); });
+    state.comboDescriptions[comboVideoKey(lengthCombo)] = 'Описание';
+    invalidBefore = JSON.stringify(state);
+    window.confirm = function () { return false; };
+    check('отмена изменения счётов сохраняет связанные описания', function () {
+      return !changeNodeLength(3, 4) && JSON.stringify(state) === invalidBefore;
+    });
+    window.confirm = function () { return true; };
+    state = savedTreeState; render();
     await runDriveTests(check);
     if (window.userImportFixture) {
       check('пользовательский файл импортируется целиком', function () {
