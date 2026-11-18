@@ -7,7 +7,7 @@ const SERVER_API_BASE = typeof window !== 'undefined' && typeof window.DANCE_API
    с ?v=… у всех css/js в index.html (проверяет tests/run-tests.js). Меняется
    при каждой правке js/css: иначе браузер (GitHub Pages кэширует на 10 минут)
    может взять новую страницу со старыми скриптами. */
-const APP_VERSION = '2026-11-18.1';
+const APP_VERSION = '2026-11-18.2';
 
 // Владелец приложения настраивает один раз перед публикацией. Это публичные
 // браузерные реквизиты, не client secret. Пользователям вводить их не нужно.
@@ -28,6 +28,7 @@ const H_GAP_MINI = 30;       // между крупной карточкой и 
 const CHILD_H_GAP = 60;      // отступ продолжений от активного
 const BUS_OFFSET = 30;
 const PAD = 30;
+const TREE_RULER_H = 76;
 const STACK_OFFSET = 30;     // насколько стек сдвинут правее карточки родителя (для линии пути)
 
 /* Блок препа на линии. Высота фиксированная (название в одну строку с

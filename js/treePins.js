@@ -64,6 +64,15 @@ function resetTreePins() {
 }
 
 /* ===== Сворачивание препов ===== */
+function collapseNewPrepLink(parentId, prepId) {
+  if (!prepId || parentId === null) return;
+  const key = prepLinkKey(parentId, prepId);
+  const exists = getChildren(parentId).some(n => n.prepId === prepId);
+  if (!exists && !(state.collapsedPrepLinks || []).includes(key)) {
+    state.collapsedPrepLinks = (state.collapsedPrepLinks || []).concat(key);
+  }
+}
+
 function isPrepLinkCollapsed(parentId, prepId) {
   return (state.collapsedPrepLinks || []).includes(prepLinkKey(parentId, prepId));
 }

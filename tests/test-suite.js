@@ -86,6 +86,18 @@
     check('преп ставится на входящую линию узла', function () {
       return state.nodes[childId].prepId === prepId;
     });
+    check('новая группа препа по умолчанию свёрнута', function () {
+      return isPrepLinkCollapsed(rootId, prepId) && qa('#nodesLayer .prep-mark').length === 1;
+    });
+    check('старые данные переходят к свёрнутым препам один раз', function () {
+      var legacy = JSON.parse(JSON.stringify(state));
+      delete legacy.prepDefaultsVersion; legacy.collapsedPrepLinks = [];
+      normalizeTreePins(legacy);
+      var collapsed = legacy.collapsedPrepLinks.includes(rootId + ':' + prepId);
+      legacy.collapsedPrepLinks = []; normalizeTreePins(legacy);
+      return collapsed && legacy.collapsedPrepLinks.length === 0;
+    });
+    togglePrepLinkCollapsed(rootId, prepId);
     check('блок препа нарисован на линии', function () {
       return qa('#nodesLayer .prep-chip').length === 1;
     });
@@ -94,6 +106,9 @@
     var child2Id = state.activePath[state.activePath.length - 1];
     check('второе продолжение за тем же препом создано', function () {
       return state.nodes[child2Id].prepId === prepId && state.nodes[child2Id].parentId === rootId;
+    });
+    check('добавление ребёнка не сворачивает уже развёрнутую группу', function () {
+      return !isPrepLinkCollapsed(rootId, prepId);
     });
     check('два продолжения за одним препом — один блок препа', function () {
       return qa('#nodesLayer .prep-chip').length === 1;
@@ -905,6 +920,26 @@
     check('одинаковый счёт выровнен при разном числе движений в ветках', function () {
       return lastFullLayout.byId.get(2).x === lastFullLayout.byId.get(5).x;
     });
+    check('компактная сетка не добавляет пустую колонку на четыре счёта', function () {
+      var compact = fullTreeBeatColumns();
+      return compact.get(4) - compact.get(3) === CARD_W + LEVEL_H_GAP
+        && compact.get(2) - compact.get(1) === 2 * (CARD_W + LEVEL_H_GAP);
+    });
+    check('линейка содержит квадраты, восьмёрки, такты и счёты', function () {
+      return !!q('.ruler-square') && !!q('.ruler-eighth') && !!q('.ruler-bar') && !!q('.ruler-beat')
+        && !!q('.ruler-guide.square');
+    });
+    var columnState = state;
+    var gridState = JSON.parse(JSON.stringify(state));
+    gridState.roots = [1]; gridState.nodes = { 1: gridState.nodes[1], 2: gridState.nodes[2] };
+    gridState.nodeOrder = [1, 2];
+    state = gridState;
+    check('ветка из четырёхсчётных движений не резервирует колонки отсутствующих узлов', function () {
+      var compact = fullTreeBeatColumns();
+      return compact.get(2) - compact.get(1) === CARD_W + LEVEL_H_GAP;
+    });
+    state = columnState;
+    render();
     check('кнопка длительности открывает выбор 4 и 2 счётов', function () {
       q('.node-card.active button[title="Изменить длительность движения"]').click();
       var ok = libraryPickerState.items.length === 2;

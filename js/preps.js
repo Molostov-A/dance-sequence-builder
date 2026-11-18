@@ -53,6 +53,7 @@ function setNodePrep(nodeId, prepId) {
     const prep = getPrep(node.prepId);
     if (!confirm(`Убрать преп «${prep ? prep.name : '???'}» с этой связи? Сам преп останется в библиотеке.`)) return;
   }
+  collapseNewPrepLink(node.parentId, prepId);
   node.prepId = prepId || null;
   saveState(); render();
 }

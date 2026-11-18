@@ -216,6 +216,13 @@ function normalizeTreePins(data) {
   data.collapsedPrepLinks = Array.isArray(data.collapsedPrepLinks)
     ? data.collapsedPrepLinks.filter(k => typeof k === 'string' && prepGroupExists(k))
     : [];
+  // Однократный переход к свёрнутым препам. Дальнейший ручной выбор
+  // сохраняется, а новые группы сворачиваются в момент добавления.
+  if (data.prepDefaultsVersion !== 1) {
+    data.collapsedPrepLinks = [...new Set(Object.values(nodes)
+      .filter(n => n.prepId && n.parentId !== null).map(n => n.parentId + ':' + n.prepId))];
+    data.prepDefaultsVersion = 1;
+  }
 }
 
 function normalizeComboVideos(data) {

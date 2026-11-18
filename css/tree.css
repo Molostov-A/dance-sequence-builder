@@ -71,6 +71,15 @@
   position: absolute; top: 0; left: 0;
   pointer-events: none; overflow: visible;
 }
+.tree-ruler { pointer-events: none; }
+.ruler-label { font: 10px sans-serif; fill: #738497; }
+.ruler-square { font-weight: 600; fill: #405a73; }
+.ruler-eighth { fill: #5d748b; }
+.ruler-tick { stroke: #cdd8e2; stroke-width: 1; }
+.ruler-guide { stroke: #e5ebf1; stroke-width: 1; stroke-dasharray: 2 5; }
+.ruler-guide.eighth { stroke: #cbd8e4; stroke-dasharray: 5 4; }
+.ruler-guide.square { stroke: #aebfd0; stroke-dasharray: none; }
+.ruler-band { fill: #6b91b7; opacity: 0.025; }
 
 .node-card {
   position: absolute; width: 200px;

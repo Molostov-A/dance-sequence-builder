@@ -116,8 +116,8 @@ function renderTree() {
     miniHFor: id => miniHeights.get(id) || MINI_H
   });
   const { cards, minis, preps, width, height } = layout;
-  const w = Math.max(width, 300);
-  const h = Math.max(height, 300);
+  const w = Math.max(width, wrap.clientWidth, 300);
+  const h = Math.max(height, wrap.clientHeight, 300);
 
   cardEls.forEach((el, i) => {
     const c = cards[i];
@@ -136,6 +136,7 @@ function renderTree() {
   svg.setAttribute('height', h);
   svg.style.width = w + 'px';
   svg.style.height = h + 'px';
+  renderTreeRuler(svg, cards.concat(minis), w, h);
   // Блоки препов фиксированной высоты — замерять не нужно, ставим сразу
   preps.forEach(p => nodesLayer.appendChild(renderPrepChip(p)));
   nodesLayer.style.visibility = '';
@@ -827,6 +828,63 @@ function renderMiniCard(m) {
   return el;
 }
 
+/* Линейка использует реальные колонки, а не равномерный масштаб времени:
+   пустые интервалы сжаты, но подписи всегда совпадают со счётом карточек.
+   Закреплённые поддеревья исключены из общей линейки. SVG-группа лежит
+   под связями и карточками и не перехватывает панорамирование/нажатия. */
+function renderTreeRuler(svg, cards, width, height) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const group = document.createElementNS(ns, 'g');
+  group.classList.add('tree-ruler');
+  group.setAttribute('aria-hidden', 'true');
+  svg.appendChild(group);
+  const add = (tag, attrs, text) => {
+    const el = document.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+    if (text !== undefined) el.textContent = text;
+    group.appendChild(el); return el;
+  };
+  if (!cards.length) return;
+  const points = new Map();
+  cards.forEach(c => points.set(c.node.beat, Math.min(points.get(c.node.beat) ?? Infinity, c.x)));
+  const endBeat = Math.max(...cards.map(c => c.node.beat + c.node.length));
+  const ending = cards.filter(c => c.node.beat + c.node.length === endBeat);
+  points.set(endBeat, Math.max(...ending.map(c => c.x + c.w + LEVEL_H_GAP)));
+  const beats = [...points.keys()].sort((a, b) => a - b);
+  const start = beats[0];
+  const xAt = beat => {
+    if (points.has(beat)) return points.get(beat);
+    const right = beats.findIndex(b => b > beat);
+    if (right < 1) return points.get(beats[right < 0 ? beats.length - 1 : 0]);
+    const a = beats[right - 1], b = beats[right];
+    return points.get(a) + (points.get(b) - points.get(a)) * (beat - a) / (b - a);
+  };
+  add('rect', { x: 0, y: 0, width, height: TREE_RULER_H, fill: '#f0f4f8' });
+  const rows = [
+    { span: 32, y: 15, name: b => 'Квадрат ' + Math.floor((eighthNumber(b) - 1) / 4 + 1), cls: 'square' },
+    { span: 8, y: 32, name: b => 'Восьмёрка ' + (((eighthNumber(b) - 1) % 4) + 1), cls: 'eighth' },
+    { span: 4, y: 49, name: b => 'Такт ' + (beatInEighth(b) === 1 ? 1 : 2), cls: 'bar' },
+    { span: 2, y: 66, name: b => beatInEighth(b) + '–' + (beatInEighth(b) + 1), cls: 'beat' }
+  ];
+  rows.forEach(row => {
+    // Ограничиваем число меток для импортов с очень большими счётами.
+    const stride = row.span * Math.max(1, Math.ceil((endBeat - start) / row.span / 1000));
+    for (let b = Math.floor((start - 1) / stride) * stride + 1; b < endBeat; b += stride) {
+      const left = xAt(Math.max(b, start)), right = xAt(Math.min(b + stride, endBeat));
+      add('text', { x: left + 5, y: row.y, class: 'ruler-label ruler-' + row.cls }, row.name(b));
+      add('line', { x1: left, y1: row.y - 12, x2: left, y2: row.y + 4, class: 'ruler-tick' });
+      if (row.span === 2) {
+        const major = beatInEighth(b) === 1;
+        const square = (eighthNumber(b) - 1) % 4 === 0 && major;
+        add('line', { x1: left, y1: TREE_RULER_H, x2: left, y2: height,
+          class: 'ruler-guide' + (square ? ' square' : major ? ' eighth' : '') });
+        if (major) add('rect', { x: left, y: TREE_RULER_H, width: Math.max(0, right - left),
+          height: Math.max(0, height - TREE_RULER_H), class: 'ruler-band' });
+      }
+    }
+  });
+}
+
 /* =========================================================
    RENDER FULL TREE — отображение всех узлов всех корней.
    ========================================================= */
@@ -852,8 +910,8 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   });
   const { cards, preps, buses, width, height } = layout;
   lastFullLayout = layout;
-  const w = Math.max(width, 300);
-  const h = Math.max(height, 300);
+  const w = Math.max(width, wrap.clientWidth, 300);
+  const h = Math.max(height, wrap.clientHeight, 300);
 
   cardEls.forEach((el, i) => {
     const c = cards[i];
@@ -873,6 +931,7 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
   svg.setAttribute('height', h);
   svg.style.width = w + 'px';
   svg.style.height = h + 'px';
+  renderTreeRuler(svg, layout.rulerCards, w, h);
   preps.forEach(p => nodesLayer.appendChild(renderPrepChip(p)));
   Object.keys(buses).forEach(pid => {
     if (!buses[pid].pinned) return;

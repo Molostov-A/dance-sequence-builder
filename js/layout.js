@@ -109,7 +109,7 @@ function computeLayout(overrides) {
   const spineNodes = activePath.slice(0, -1); // без активного
 
   // Горизонтальное расположение, верхняя граница на Y = PAD
-  const spineY = PAD;
+  const spineY = PAD + TREE_RULER_H;
 
   let spineX = PAD;
   spineNodes.forEach((nodeId, i) => {
@@ -247,10 +247,11 @@ function countAllDescendants(nodeId) {
    вправо столбиком. Корни расположены вертикально.
    ========================================================= */
 const ROOT_V_GAP = 40;
-const LEVEL_H_GAP = 80;
+const LEVEL_H_GAP = 40;
 
-/* Общие колонки по абсолютному счёту, а не по числу предков. Шаг в два
-   счёта вмещает крупную карточку даже при переключении активного пути.
+/* Общие колонки по абсолютному счёту, а не по числу предков. Интервалы
+   занимают только место, необходимое реальным карточкам и переходам:
+   четыре счёта без промежуточного узла не создают пустую колонку.
    Развёрнутые препы расширяют общий интервал, поэтому одинаковые счёты
    остаются на одной вертикали и при разном наборе препов в ветках.
    Каждый закреплённый узел начинает независимую сетку: его входящая
@@ -271,21 +272,24 @@ function fullTreeBeatColumns() {
   groups.forEach(nodes => {
     const beats = [...new Set(nodes.map(n => n.beat))].sort((a, b) => a - b);
     const xForBeat = new Map();
-    const extra = new Map();
+    const atBeat = new Map();
     nodes.forEach(n => {
-      const children = getVisibleChildren(n.id).filter(ch => groupOf.get(ch.id) === groupOf.get(n.id));
-      if (children.length) {
-        const beat = children[0].beat;
-        extra.set(beat, Math.max(extra.get(beat) || 0, prepColumnExtra(n.id, children)));
-      }
+      if (!atBeat.has(n.beat)) atBeat.set(n.beat, []);
+      atBeat.get(n.beat).push(n);
     });
-    let x = PAD;
     beats.forEach((beat, i) => {
-      if (i) x += (beat - beats[i - 1]) / 2 * (CARD_W + LEVEL_H_GAP) + (extra.get(beat) || 0);
+      let x = i ? xForBeat.get(beats[i - 1]) + LEVEL_H_GAP : PAD;
+      atBeat.get(beat).forEach(n => {
+        const parent = state.nodes[n.parentId];
+        if (!parent || groupOf.get(parent.id) !== groupOf.get(n.id)) return;
+        const prepExtra = n.prepId ? prepChipGeometry(parent.id, n.prepId).col : 0;
+        x = Math.max(x, xForBeat.get(parent.beat) + CARD_W + LEVEL_H_GAP + prepExtra);
+      });
       xForBeat.set(beat, x);
     });
     nodes.forEach(n => columns.set(n.id, xForBeat.get(n.beat)));
   });
+  columns.groupOf = groupOf;
   return columns;
 }
 
@@ -353,7 +357,7 @@ function computeFullTreeLayout(overrides) {
     return { elements, preps: subPreps, width: subtreeW, height: Math.max(h, childrenBlockH) };
   }
 
-  let curY = PAD;
+  let curY = PAD + TREE_RULER_H;
   state.roots.forEach((rootId, i) => {
     const res = layoutSubtree(rootId, curY);
     // Помечаем корень
@@ -380,6 +384,7 @@ function computeFullTreeLayout(overrides) {
     preps,
     buses,
     byId: new Map(cards.map(c => [c.node.id, c])),
+    rulerCards: cards.filter(c => beatColumns.groupOf.get(c.node.id) === null),
     width: maxRight + PAD,
     height: Math.max(maxBottom + PAD, 220)
   };
@@ -449,12 +454,12 @@ function applyTreePins(cards, preps) {
       if (p.parentId !== c.node.id) return;
       p.members.forEach(id => inChip.add(id));
       // Незакреплённому блоку нужно место между шиной и колонкой
-      ends.push(p.pinned ? p.x : p.colX - p.w - 16);
+      ends.push(p.pinned ? p.x : p.colX - p.w - (p.collapsed ? 8 : 16));
     });
     children.forEach(ch => { if (!inChip.has(ch.id) && byId.get(ch.id)) ends.push(byId.get(ch.id).x); });
     const maxX = Math.min(...ends) - 8;
     let x = c.x + c.w + (pin ? pin.dx : BUS_OFFSET);
-    if (pin && maxX > c.x + c.w) x = Math.min(x, maxX);
+    if (maxX > c.x + c.w) x = Math.min(x, maxX);
     buses[c.node.id] = { x, pinned: !!pin };
     // Незакреплённый преп снова встаёт посередине своей линии — от итоговой
     // общей шины или от собственного излома линии к препу (treePins.links)

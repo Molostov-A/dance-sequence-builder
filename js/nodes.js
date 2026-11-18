@@ -1,5 +1,6 @@
 function addRoot() { openForm({ parentId: null, isRoot: true, beat: 1 }); }
 function addChildNode(parentId, movementId, beat, length, prepId) {
+  collapseNewPrepLink(parentId, prepId);
   const id = state.nextNodeId++;
   state.nodes[id] = { id, movementId, parentId, beat, length, prepId: prepId || null };
   state.nodeOrder.push(id);
@@ -236,6 +237,7 @@ function reparentNode(nodeId, newParentId) {
     state.roots = state.roots.filter(r => r !== nodeId);
     node.prepId = null;
   }
+  collapseNewPrepLink(newParentId, node.prepId);
   node.parentId = newParentId;
   // Закрепление считалось от старого родителя — у нового узел встаёт сам
   if (state.treePins && state.treePins.nodes) delete state.treePins.nodes[nodeId];
