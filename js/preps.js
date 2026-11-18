@@ -105,12 +105,16 @@ function renderPreps() {
   const ul = document.getElementById('prepList');
   if (!ul) return;
   ul.innerHTML = '';
-  const preps = state.preps || [];
-  document.getElementById('prepCount').textContent = preps.length ? `(${preps.length})` : '';
+  const allPreps = state.preps || [];
+  const query = librarySearchQuery('prepLibrarySearch');
+  const preps = allPreps.filter(p => searchWordsMatch(p.name, query));
+  document.getElementById('prepCount').textContent = query ? `(${preps.length} из ${allPreps.length})`
+    : allPreps.length ? `(${allPreps.length})` : '';
   if (preps.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty-hint';
-    li.textContent = 'Пока пусто. Препы можно добавлять здесь или прямо в дереве — кнопкой ‖ на карточке или в форме продолжения.';
+    li.textContent = allPreps.length ? 'Ничего не найдено. Измените или очистите поиск.'
+      : 'Пока пусто. Препы можно добавлять здесь или прямо в дереве — кнопкой ‖ на карточке или в форме продолжения.';
     ul.appendChild(li);
     return;
   }

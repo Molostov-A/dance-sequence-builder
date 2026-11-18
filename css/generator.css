@@ -62,6 +62,8 @@
   color: #999; font-style: italic; font-size: 12px;
   padding: 8px 0;
 }
+.gen-movement-link { background: none; border: 0; padding: 2px 1px; font: inherit; color: inherit; cursor: pointer; text-align: left; border-radius: 3px; }
+.gen-movement-link:hover, .gen-movement-link:focus-visible { color: #2980b9; text-decoration: underline; outline: 1px solid #3498db; outline-offset: 1px; }
 
 .gen-filters {
   display: flex; flex-wrap: wrap; gap: 6px 16px;

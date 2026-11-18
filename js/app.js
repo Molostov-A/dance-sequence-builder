@@ -46,6 +46,18 @@ document.getElementById('importModal').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { e.preventDefault(); closeImportModal(); }
 });
 document.getElementById('btnAddMovement').addEventListener('click', addMovementFromInput);
+
+[
+  ['movementLibrarySearch', 'btnClearMovementSearch', renderMovements],
+  ['prepLibrarySearch', 'btnClearPrepSearch', renderPreps]
+].forEach(([inputId, clearId, renderList]) => {
+  const input = document.getElementById(inputId);
+  input.addEventListener('input', renderList);
+  input.addEventListener('search', renderList);
+  const clear = () => { input.value = ''; renderList(); input.focus(); };
+  document.getElementById(clearId).addEventListener('click', clear);
+  input.addEventListener('keydown', e => { if (e.key === 'Escape' && !e.isComposing) { e.preventDefault(); clear(); } });
+});
 document.getElementById('newMovInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addMovementFromInput();
 });

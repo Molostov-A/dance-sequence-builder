@@ -174,18 +174,35 @@ function movementNotes(mov) {
   return parts.join('\n');
 }
 
+function showMovementInLibrary(movementId) {
+  if (!getMovement(movementId)) return;
+  document.getElementById('movementLibrarySearch').value = '';
+  setView('library');
+  if (isNarrowScreen()) closeNav();
+  const row = document.querySelector('#movList [data-movement-id="' + movementId + '"]');
+  if (!row) return;
+  row.classList.add('library-focus');
+  row.tabIndex = -1;
+  row.focus({ preventScroll: true });
+  row.scrollIntoView({ block: 'center', inline: 'nearest' });
+}
+
 function renderMovements() {
   const ul = document.getElementById('movList');
   ul.innerHTML = '';
-  document.getElementById('libCount').textContent = state.movements.length ? `(${state.movements.length})` : '';
-  if (state.movements.length === 0) {
+  const query = librarySearchQuery('movementLibrarySearch');
+  const movements = state.movements.filter(m => searchWordsMatch(m.name, query));
+  document.getElementById('libCount').textContent = query ? `(${movements.length} из ${state.movements.length})`
+    : state.movements.length ? `(${state.movements.length})` : '';
+  if (movements.length === 0) {
     const li = document.createElement('li');
-    li.className = 'empty-hint'; li.textContent = 'Пока пусто';
+    li.className = 'empty-hint'; li.textContent = state.movements.length ? 'Ничего не найдено. Измените или очистите поиск.' : 'Пока пусто';
     ul.appendChild(li); return;
   }
   rebuildMovementVideoIndex();
-  state.movements.forEach(m => {
+  movements.forEach(m => {
     const li = document.createElement('li');
+    li.dataset.movementId = m.id;
     const notes = movementNotes(m);
     li.title = notes
       ? `${notes}\n\nОткрыть движение в модальном окне`

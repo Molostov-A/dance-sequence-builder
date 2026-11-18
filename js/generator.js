@@ -226,6 +226,17 @@ function generateSequences() {
   return results;
 }
 
+function renderGeneratorMovementLink(movementId) {
+  const movement = getMovement(movementId);
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.disabled = !movement;
+  button.title = movement ? `Показать «${movement.name}» в библиотеке движений` : 'Движение удалено';
+  renderRichText(nameSegmentsOf(movement), button);
+  button.onclick = e => { e.stopPropagation(); showMovementInLibrary(movementId); };
+  return button;
+}
+
 function renderGenerator() {
   syncGeneratedSequences();
   renderGenTree();
@@ -328,10 +339,9 @@ function renderGenTree() {
         arrow.textContent = '→';
         row.appendChild(arrow);
       }
-      const mov = getMovement(node.movementId);
-      const movSpan = document.createElement('span');
+      const movSpan = renderGeneratorMovementLink(node.movementId);
       movSpan.className = 'gen-seq-mov';
-      renderRichText(nameSegmentsOf(mov), movSpan);
+      movSpan.classList.add('gen-movement-link');
       const beatSpan = document.createElement('span');
       beatSpan.className = 'gen-seq-beat';
       beatSpan.textContent = ' (' + formatBeatShort(node.beat, node.length) + ')';
@@ -397,10 +407,9 @@ function renderGenCombos() {
       arrow.textContent = '→';
       li.appendChild(arrow);
     }
-    const mov = getMovement(node.movementId);
-    const movSpan = document.createElement('span');
+    const movSpan = renderGeneratorMovementLink(node.movementId);
     movSpan.className = 'mov';
-    renderRichText(nameSegmentsOf(mov), movSpan);
+    movSpan.classList.add('gen-movement-link');
     const beatSpan = document.createElement('span');
     beatSpan.className = 'beat';
     beatSpan.textContent = ' (' + formatBeatNode(node.beat, node.length) + ')';

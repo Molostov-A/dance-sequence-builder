@@ -28,6 +28,13 @@ function searchWordsMatch(text, query) {
   return words.every(w => hay.includes(w));
 }
 
+function librarySearchQuery(inputId) {
+  const input = document.getElementById(inputId);
+  if (input.dataset.storageKey && input.dataset.storageKey !== activeStorageKey) input.value = '';
+  input.dataset.storageKey = activeStorageKey;
+  return input.value.trim();
+}
+
 function openLibraryPicker(opts) {
   libraryPickerState = opts;
   document.getElementById('libraryPickerTitle').textContent = opts.title || 'Выбрать';

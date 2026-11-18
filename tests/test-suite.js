@@ -677,6 +677,26 @@
     });
     genFilters = { diverse: false, novel: false };
     genSequences = [];
+    var libraryMovementId = state.movements[0].id;
+    genSequences = [mk([libraryMovementId]), mk([libraryMovementId])];
+    genSelectedIdx = 1; genSourceSignature = generatorSourceSignature();
+    setView('generator');
+    q('#movementLibrarySearch').value = 'нет такого движения'; renderMovements();
+    q('#genTreeContainer .gen-movement-link').click();
+    check('движение из списка генератора открывает нужную строку библиотеки', function () {
+      var row = q('#movList .library-focus');
+      return state.currentView === 'library' && row && Number(row.dataset.movementId) === libraryMovementId
+        && document.activeElement === row && q('#movementLibrarySearch').value === '';
+    });
+    check('переход к движению не выбирает другую связку и не очищает генерацию', function () {
+      return genSelectedIdx === 1 && genSequences.length === 2;
+    });
+    setView('generator');
+    q('#genCombosContainer .gen-movement-link').click();
+    check('движение из подробного просмотра генерации тоже открывает библиотеку', function () {
+      return state.currentView === 'library' && Number(q('#movList .library-focus').dataset.movementId) === libraryMovementId;
+    });
+    genSequences = []; genSelectedIdx = -1;
     setView('tree');
 
     // --- Удаление препа ---
@@ -1024,6 +1044,28 @@
     });
     state.roots = [1,6]; state.nodeOrder = searchRows.map(function (r) { return r[0]; }); state.activePath = [1];
     render();
+    q('#movementLibrarySearch').value = 'ЛЬФ'; q('#movementLibrarySearch').dispatchEvent(new Event('input'));
+    check('библиотека движений ищет по части названия без учёта регистра', function () {
+      return qa('#movList li[data-movement-id]').length === 1 && q('#movList li').dataset.movementId === '1'
+        && q('#libCount').textContent === '(1 из 3)';
+    });
+    q('#movementLibrarySearch').value = 'совпадений нет'; q('#movementLibrarySearch').dispatchEvent(new Event('input'));
+    check('поиск без совпадений показывает сообщение, сохраняя библиотеку', function () {
+      return !!q('#movList .empty-hint') && state.movements.length === 3;
+    });
+    q('#btnClearMovementSearch').click();
+    check('сброс поиска возвращает все движения', function () {
+      return qa('#movList li[data-movement-id]').length === 3 && q('#movementLibrarySearch').value === '';
+    });
+    q('#prepLibrarySearch').value = 'ПЕРВ пер'; q('#prepLibrarySearch').dispatchEvent(new Event('input'));
+    check('библиотека препов ищет по частям нескольких слов', function () {
+      return qa('#prepList .name').length === 1 && q('#prepList .name').textContent === 'Первый переход'
+        && q('#prepCount').textContent === '(1 из 2)';
+    });
+    q('#prepLibrarySearch').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    check('Escape сбрасывает поиск препов', function () {
+      return q('#prepLibrarySearch').value === '' && qa('#prepList .name').length === 2;
+    });
     var moveA = { kind: 'movement', id: 1 }, moveB = { kind: 'movement', id: 2 }, moveC = { kind: 'movement', id: 3 };
     var prepOne = { kind: 'prep', id: 1 }, prepTwo = { kind: 'prep', id: 2 };
     check('поиск движения находит все его узлы', function () {

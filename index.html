@@ -2,22 +2,22 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="app-version" content="2026-11-18.3">
+<meta name="app-version" content="2026-11-18.5">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>Конструктор танцевальных связок</title>
 <link rel="icon" type="image/png" sizes="32x32" href="img/icon.png">
 <link rel="apple-touch-icon" href="img/icon.png">
-<link rel="stylesheet" href="css/base.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/layout.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/library.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/tree.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/form.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/combo.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/modal.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/responsive.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/generator.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/dictionary.css?v=2026-11-18.3">
-<link rel="stylesheet" href="css/mentions.css?v=2026-11-18.3">
+<link rel="stylesheet" href="css/base.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/layout.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/library.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/tree.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/form.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/combo.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/modal.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/responsive.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/generator.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/dictionary.css?v=2026-11-18.5">
+<link rel="stylesheet" href="css/mentions.css?v=2026-11-18.5">
 </head>
 <body>
 
@@ -105,6 +105,11 @@
         <div id="newMovInput" class="mention-editor single" contenteditable="true" data-placeholder="Новое движение"></div>
         <button class="btn" id="btnAddMovement">+</button>
       </div>
+      <label class="library-search-label" for="movementLibrarySearch">Поиск по названию</label>
+      <div class="library-search-row">
+        <input type="search" id="movementLibrarySearch" placeholder="Введите часть названия…" autocomplete="off">
+        <button type="button" id="btnClearMovementSearch" title="Очистить поиск движений">Сбросить</button>
+      </div>
       <ul class="mov-list" id="movList"></ul>
     </div>
   </section>
@@ -118,6 +123,11 @@
       <div class="add-mov-row add-mov-row-top">
         <div id="newPrepInput" class="mention-editor single" contenteditable="true" data-placeholder="Новый преп"></div>
         <button class="btn" id="btnAddPrep">+</button>
+      </div>
+      <label class="library-search-label" for="prepLibrarySearch">Поиск по названию</label>
+      <div class="library-search-row">
+        <input type="search" id="prepLibrarySearch" placeholder="Введите часть названия…" autocomplete="off">
+        <button type="button" id="btnClearPrepSearch" title="Очистить поиск препов">Сбросить</button>
       </div>
       <ul class="mov-list" id="prepList"></ul>
     </div>
@@ -497,32 +507,32 @@
 <div id="mentionTooltip" class="mention-tooltip hidden"></div>
 <div id="prepTooltip" class="prep-tooltip hidden"></div>
 
-<script src="js/runtime-config.js?v=2026-11-18.3"></script>
-<script src="js/constants.js?v=2026-11-18.3"></script>
-<script src="js/state.js?v=2026-11-18.3"></script>
-<script src="js/beat.js?v=2026-11-18.3"></script>
-<script src="js/movements.js?v=2026-11-18.3"></script>
-<script src="js/preps.js?v=2026-11-18.3"></script>
-<script src="js/picker.js?v=2026-11-18.3"></script>
-<script src="js/nodes.js?v=2026-11-18.3"></script>
-<script src="js/path.js?v=2026-11-18.3"></script>
-<script src="js/layout.js?v=2026-11-18.3"></script>
-<script src="js/treePins.js?v=2026-11-18.3"></script>
-<script src="js/form.js?v=2026-11-18.3"></script>
-<script src="js/tree.js?v=2026-11-18.3"></script>
-<script src="js/treeSearch.js?v=2026-11-18.3"></script>
-<script src="js/combos.js?v=2026-11-18.3"></script>
-<script src="js/comboFolders.js?v=2026-11-18.3"></script>
-<script src="js/exports.js?v=2026-11-18.3"></script>
-<script src="js/panels.js?v=2026-11-18.3"></script>
-<script src="js/pan.js?v=2026-11-18.3"></script>
-<script src="js/generator.js?v=2026-11-18.3"></script>
-<script src="js/dictionary.js?v=2026-11-18.3"></script>
-<script src="js/media.js?v=2026-11-18.3"></script>
-<script src="js/mentions.js?v=2026-11-18.3"></script>
-<script src="js/sync.js?v=2026-11-18.3"></script>
-<script src="js/drive.js?v=2026-11-18.3"></script>
-<script src="js/account.js?v=2026-11-18.3"></script>
-<script src="js/app.js?v=2026-11-18.3"></script>
+<script src="js/runtime-config.js?v=2026-11-18.5"></script>
+<script src="js/constants.js?v=2026-11-18.5"></script>
+<script src="js/state.js?v=2026-11-18.5"></script>
+<script src="js/beat.js?v=2026-11-18.5"></script>
+<script src="js/movements.js?v=2026-11-18.5"></script>
+<script src="js/preps.js?v=2026-11-18.5"></script>
+<script src="js/picker.js?v=2026-11-18.5"></script>
+<script src="js/nodes.js?v=2026-11-18.5"></script>
+<script src="js/path.js?v=2026-11-18.5"></script>
+<script src="js/layout.js?v=2026-11-18.5"></script>
+<script src="js/treePins.js?v=2026-11-18.5"></script>
+<script src="js/form.js?v=2026-11-18.5"></script>
+<script src="js/tree.js?v=2026-11-18.5"></script>
+<script src="js/treeSearch.js?v=2026-11-18.5"></script>
+<script src="js/combos.js?v=2026-11-18.5"></script>
+<script src="js/comboFolders.js?v=2026-11-18.5"></script>
+<script src="js/exports.js?v=2026-11-18.5"></script>
+<script src="js/panels.js?v=2026-11-18.5"></script>
+<script src="js/pan.js?v=2026-11-18.5"></script>
+<script src="js/generator.js?v=2026-11-18.5"></script>
+<script src="js/dictionary.js?v=2026-11-18.5"></script>
+<script src="js/media.js?v=2026-11-18.5"></script>
+<script src="js/mentions.js?v=2026-11-18.5"></script>
+<script src="js/sync.js?v=2026-11-18.5"></script>
+<script src="js/drive.js?v=2026-11-18.5"></script>
+<script src="js/account.js?v=2026-11-18.5"></script>
+<script src="js/app.js?v=2026-11-18.5"></script>
 </body>
 </html>
