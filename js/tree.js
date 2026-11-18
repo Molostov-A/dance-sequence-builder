@@ -73,6 +73,7 @@ function renderTree() {
 
   if (state.treeViewMode === 'all') {
     renderFullTree(inner, nodesLayer, svg, wrap);
+    applyTreeSearchHighlights();
     wrap.scrollLeft = scrollLeft;
     wrap.scrollTop = scrollTop;
     if (openFormState) {
@@ -90,6 +91,7 @@ function renderTree() {
     svg.setAttribute('width', 0);
     svg.setAttribute('height', 0);
     nodesLayer.innerHTML = '<div class="tree-empty-hint">Нет активной ветки. Добавьте связку или выберите узел.</div>';
+    applyTreeSearchHighlights();
     return;
   }
 
@@ -271,9 +273,11 @@ function renderTree() {
     path.setAttribute('stroke', '#9b59b6');
     path.setAttribute('stroke-width', '1.5');
     path.setAttribute('stroke-dasharray', '6 3');
+    path.setAttribute('data-search-merge', 'm:' + m.from + ':' + m.to);
     svg.appendChild(path);
   });
 
+  applyTreeSearchHighlights();
   wrap.scrollLeft = scrollLeft;
   wrap.scrollTop = scrollTop;
 
@@ -531,6 +535,7 @@ function renderPrepChip(chip) {
   const el = document.createElement('div');
   el.className = chip.collapsed ? 'prep-mark' : 'prep-chip';
   el.setAttribute('data-prep-id', chip.prepId);
+  el.setAttribute('data-prep-parent', chip.parentId);
   el.style.left = chip.x + 'px';
   el.style.top = chip.y + 'px';
   el.style.width = chip.w + 'px';
@@ -1011,6 +1016,7 @@ function renderFullTree(inner, nodesLayer, svg, wrap) {
     path.setAttribute('stroke', '#9b59b6');
     path.setAttribute('stroke-width', '1.5');
     path.setAttribute('stroke-dasharray', '6 3');
+    path.setAttribute('data-search-merge', 'm:' + m.from + ':' + m.to);
     svg.appendChild(path);
   });
 }

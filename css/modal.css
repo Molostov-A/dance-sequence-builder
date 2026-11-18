@@ -17,6 +17,11 @@
   border-radius: 4px; resize: none;
 }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.tree-search-modal { width: 560px; max-width: calc(100vw - 24px); overflow-y: auto; }
+.tree-search-modal .actions { flex-wrap: wrap; }
+#treeSearchSteps { list-style: none; padding: 0; margin: 12px 0; max-height: 40vh; overflow-y: auto; flex-shrink: 0; }
+#treeSearchSteps li { display: flex; align-items: center; gap: 4px; padding: 5px; border-bottom: 1px solid #edf0f3; }
+#treeSearchSteps li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .import-modal { overflow-y: auto; }
 #importUrlError { overflow-wrap: anywhere; }
 #importUrlFallback a { display: block; margin-bottom: 8px; }

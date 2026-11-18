@@ -1014,7 +1014,97 @@
       return !changeNodeLength(3, 4) && JSON.stringify(state) === invalidBefore;
     });
     window.confirm = function () { return true; };
-    state = savedTreeState; render();
+    state = initialState();
+    state.movements = [{ id: 1, name: 'Альфа' }, { id: 2, name: 'Бета' }, { id: 3, name: 'Гамма' }];
+    state.preps = [{ id: 1, name: 'Первый переход' }, { id: 2, name: 'Второй переход' }];
+    var searchRows = [[1,1,null,1,0],[2,2,1,5,1],[3,1,2,9,2],[4,2,1,5,1],
+      [5,3,4,9,2],[6,1,null,1,0],[7,2,6,5,2],[8,3,7,9,0]];
+    searchRows.forEach(function (r) {
+      state.nodes[r[0]] = { id: r[0], movementId: r[1], parentId: r[2], beat: r[3], length: 4, prepId: r[4] || null };
+    });
+    state.roots = [1,6]; state.nodeOrder = searchRows.map(function (r) { return r[0]; }); state.activePath = [1];
+    render();
+    var moveA = { kind: 'movement', id: 1 }, moveB = { kind: 'movement', id: 2 }, moveC = { kind: 'movement', id: 3 };
+    var prepOne = { kind: 'prep', id: 1 }, prepTwo = { kind: 'prep', id: 2 };
+    check('поиск движения находит все его узлы', function () {
+      var matches = findTreeSearchMatches([moveA]);
+      return matches.nodes.size === 3 && matches.starts.length === 3 && !matches.links.size;
+    });
+    check('поиск последовательности не захватывает частичные совпадения в другой ветке', function () {
+      var matches = findTreeSearchMatches([moveA,moveB,moveC]);
+      return matches.starts.length === 2 && matches.nodes.size === 6 && !matches.nodes.has(2) && !matches.nodes.has(3);
+    });
+    check('поиск соблюдает порядок и соседство движений', function () {
+      return !findTreeSearchMatches([moveA,moveC]).starts.length && !findTreeSearchMatches([moveC,moveB]).starts.length;
+    });
+    check('преп в последовательности ограничивает конкретный переход', function () {
+      var matches = findTreeSearchMatches([moveA,prepOne,moveB]);
+      return matches.starts.length === 1 && matches.nodes.size === 3 && !matches.nodes.has(7)
+        && matches.preps.has('1:1') && matches.links.has('c:2') && matches.links.has('c:4');
+    });
+    check('одиночный преп находит все линии, а не только одну общую метку', function () {
+      var matches = findTreeSearchMatches([prepOne]);
+      return matches.starts.length === 2 && matches.preps.size === 1 && !matches.nodes.size;
+    });
+    check('последовательность препов проверяет соседние переходы', function () {
+      return findTreeSearchMatches([prepOne,prepTwo]).starts.length === 2
+        && !findTreeSearchMatches([prepTwo,prepOne]).starts.length;
+    });
+    state.merges = [{ from: 3, to: 2 }];
+    check('поиск учитывает merge, перекрывающиеся совпадения и завершается при цикле', function () {
+      var matches = findTreeSearchMatches([moveA,moveB,moveA,moveB]);
+      return matches.starts.length === 2 && matches.links.has('m:3:2');
+    });
+    check('merge-переход не получает входящий преп целевого узла', function () {
+      return findTreeSearchMatches([moveA,prepOne,moveB]).starts.length === 1;
+    });
+    state.merges = []; state.collapsedNodes = [1,6];
+    runTreeSearch([moveA,moveB]);
+    check('поиск раскрывает скрытые совпадения и показывает все ветви', function () {
+      return state.currentView === 'tree' && state.treeViewMode === 'all' && !state.collapsedNodes.length
+        && qa('#nodesLayer .search-match[data-node-id]').length === 5;
+    });
+    check('совпадения подсвечивают связи и показывают количество мест', function () {
+      return qa('.search-link').length > 0 && !q('#treeSearchBar').hidden && q('#treeSearchCount').textContent.includes('Мест: 2');
+    });
+    focusTreeSearchResult(1);
+    check('стрелка переводит к следующему месту совпадения', function () {
+      return state.activePath[state.activePath.length - 1] === 6 && treeSearchIndex === 1;
+    });
+    setView('library');
+    q('#movList button.count').click();
+    check('клик по счётчику библиотеки движений открывает дерево с подсветкой', function () {
+      return state.currentView === 'tree' && treeSearchQuery.length === 1 && treeSearchQuery[0].kind === 'movement'
+        && qa('#nodesLayer .search-match[data-node-id]').length === 3;
+    });
+    setView('preps');
+    q('#prepList button.count').click();
+    check('клик по счётчику препа подсвечивает свёрнутую метку', function () {
+      return state.currentView === 'tree' && treeSearchQuery[0].kind === 'prep'
+        && qa('#nodesLayer .prep-mark.search-match').length === 1;
+    });
+    openTreeSearch(); addTreeSearchStep('movement');
+    libraryPickerState.onPick(2); closeLibraryPicker();
+    check('окно поиска позволяет собрать смешанную последовательность', function () {
+      return treeSearchDraft.length === 2 && treeSearchDraft[1].id === 2 && !q('#btnRunTreeSearch').disabled;
+    });
+    closeTreeSearch();
+    runTreeSearch([{ kind: 'movement', id: 999 }]);
+    check('несуществующее движение показывает отсутствие совпадений', function () {
+      return q('#treeSearchCount').textContent === 'Совпадений нет' && q('#btnSearchNext').disabled;
+    });
+    clearTreeSearch();
+    check('снятие подсветки очищает карточки, метки и связи', function () {
+      return q('#treeSearchBar').hidden && !qa('.search-match, .search-link').length;
+    });
+    runTreeSearch([moveA]);
+    var searchStorageKey = activeStorageKey;
+    activeStorageKey += '-search-test'; render();
+    check('смена аккаунта очищает запрос и подсветку', function () {
+      return !treeSearchQuery.length && q('#treeSearchBar').hidden;
+    });
+    activeStorageKey = searchStorageKey;
+    state = savedTreeState; clearTreeSearch(); render();
     await runDriveTests(check);
     if (window.userImportFixture) {
       check('пользовательский файл импортируется целиком', function () {

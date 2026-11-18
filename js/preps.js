@@ -125,10 +125,13 @@ function renderPreps() {
     name.className = 'name';
     renderRichText(nameSegmentsOf(p), name);
     const usage = prepUsageCount(p.id);
-    const count = document.createElement('span');
+    const count = document.createElement('button');
+    count.type = 'button';
     count.className = 'count';
     count.textContent = usage > 0 ? usage + ' лин.' : '0';
-    count.title = 'На скольких линиях дерева стоит преп';
+    count.title = 'Показать все места использования препа в дереве';
+    count.setAttribute('aria-label', `Найти преп ${p.name} в дереве: ${usage} мест`);
+    count.onclick = e => { e.stopPropagation(); showTreeUsage('prep', p.id); };
     if (usage > 0) count.classList.add('used');
     const editBtn = document.createElement('button');
     editBtn.className = 'icon-btn'; editBtn.title = 'Редактировать'; editBtn.textContent = '✎';

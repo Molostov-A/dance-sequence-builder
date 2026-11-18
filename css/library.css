@@ -8,6 +8,8 @@
   padding: 1px 6px; border-radius: 8px;
 }
 .mov-list .count.used { color: #27ae60; background: #eafaf1; }
+.mov-list button.count { border: 1px solid transparent; cursor: pointer; flex-shrink: 0; font-family: inherit; }
+.mov-list button.count:hover, .mov-list button.count:focus-visible { border-color: #3498db; text-decoration: underline; }
 .mov-list .mov-id {
   font-size: 10px; color: #aaa; font-family: monospace;
   min-width: 24px; text-align: right;

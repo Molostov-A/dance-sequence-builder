@@ -200,9 +200,13 @@ function renderMovements() {
     const name = document.createElement('span');
     name.className = 'name';
     renderRichText(nameSegmentsOf(m), name);
-    const count = document.createElement('span');
+    const count = document.createElement('button');
+    count.type = 'button';
     count.className = 'count';
-    count.textContent = usage > 0 ? usage + ' uses' : '0';
+    count.textContent = usage > 0 ? usage + ' мест' : '0';
+    count.title = 'Показать все места использования в дереве';
+    count.setAttribute('aria-label', `Найти движение ${m.name} в дереве: ${usage} мест`);
+    count.onclick = e => { e.stopPropagation(); showTreeUsage('movement', m.id); };
     if (usage > 0) count.classList.add('used');
     const editBtn = document.createElement('button');
     editBtn.className = 'icon-btn'; editBtn.title = 'Переименовать'; editBtn.textContent = '✎';
