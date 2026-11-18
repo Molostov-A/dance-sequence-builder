@@ -102,6 +102,7 @@ function openNodePrepPicker(nodeId) {
 }
 
 function renderPreps() {
+  renderLibraryMergeControls('prep');
   const ul = document.getElementById('prepList');
   if (!ul) return;
   ul.innerHTML = '';
@@ -120,6 +121,7 @@ function renderPreps() {
   }
   preps.forEach(p => {
     const li = document.createElement('li');
+    li.dataset.prepId = p.id;
     const notes = movementNotes(p);
     li.title = notes ? `${notes}\n\nОткрыть преп` : 'Открыть преп';
     li.onclick = () => openMovementModal({ kind: 'prep', prepId: p.id });
@@ -144,6 +146,7 @@ function renderPreps() {
     delBtn.className = 'icon-btn danger'; delBtn.title = 'Удалить'; delBtn.textContent = '✕';
     delBtn.onclick = (e) => { e.stopPropagation(); deletePrep(p.id); };
     li.append(idSpan, name, count, editBtn, delBtn);
+    decorateLibraryMergeRow(li, p, 'prep');
     ul.appendChild(li);
   });
 }

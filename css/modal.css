@@ -17,6 +17,12 @@
   border-radius: 4px; resize: none;
 }
 .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+.library-merge-modal { overflow-y: auto; }
+.library-merge-modal label { display: block; margin: 8px 0 4px; font-size: 13px; }
+.library-merge-modal select, .library-merge-modal input { width: 100%; min-width: 0; padding: 8px; font-size: 16px; border: 1px solid #ccd4dc; border-radius: 4px; }
+#libraryMergeSources { max-height: 25vh; overflow-y: auto; flex-shrink: 0; padding-left: 22px; overflow-wrap: anywhere; }
+#libraryMergeError { color: #b03a2e; overflow-wrap: anywhere; font-size: 13px; }
+.library-merge-modal .actions { flex-wrap: wrap; }
 .tree-search-modal { width: 560px; max-width: calc(100vw - 24px); overflow-y: auto; }
 .tree-search-modal .actions { flex-wrap: wrap; }
 #treeSearchSteps { list-style: none; padding: 0; margin: 12px 0; max-height: 40vh; overflow-y: auto; flex-shrink: 0; }

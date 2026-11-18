@@ -11,6 +11,13 @@
 .mov-list button.count { border: 1px solid transparent; cursor: pointer; flex-shrink: 0; font-family: inherit; }
 .mov-list button.count:hover, .mov-list button.count:focus-visible { border-color: #3498db; text-decoration: underline; }
 .mov-list li.library-focus { background: #fff2cc; outline: 2px solid #e6ad33; outline-offset: -2px; }
+.library-merge-toolbar { margin: 8px 0; font-size: 12px; }
+.library-merge-toolbar > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.library-merge-toolbar [hidden] { display: none; }
+.library-merge-toolbar button { padding: 6px 9px; border: 1px solid #ccd4dc; border-radius: 4px; background: #f5f7f9; cursor: pointer; }
+.library-merge-toolbar button:disabled { opacity: 0.5; cursor: default; }
+.mov-list li.merge-selected { background: #eaf5ff; outline: 1px solid #3498db; }
+.mov-list li input[type="checkbox"] { flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
 .mov-list .mov-id {
   font-size: 10px; color: #aaa; font-family: monospace;
   min-width: 24px; text-align: right;

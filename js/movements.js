@@ -188,6 +188,7 @@ function showMovementInLibrary(movementId) {
 }
 
 function renderMovements() {
+  renderLibraryMergeControls('movement');
   const ul = document.getElementById('movList');
   ul.innerHTML = '';
   const query = librarySearchQuery('movementLibrarySearch');
@@ -243,6 +244,7 @@ function renderMovements() {
       li.appendChild(videoBtn);
     }
     li.append(editBtn, delBtn);
+    decorateLibraryMergeRow(li, m, 'movement');
     ul.appendChild(li);
   });
 }

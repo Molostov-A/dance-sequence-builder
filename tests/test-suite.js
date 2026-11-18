@@ -1146,7 +1146,103 @@
       return !treeSearchQuery.length && q('#treeSearchBar').hidden;
     });
     activeStorageKey = searchStorageKey;
-    state = savedTreeState; clearTreeSearch(); render();
+    state = initialState();
+    state.movements = [{ id: 1, name: 'Дубль один', lead: 'Вести', leadSegments: [{ conceptId: 'w1', text: 'Вести' }], follow: 'Первое описание' },
+      { id: 2, name: 'Дубль два', lead: 'Вести', follow: 'Второе описание' }, { id: 3, name: 'Отдельное' }];
+    state.concepts = [{ id: 'w1', short: 'Вести', names: [], definition: '', media: [] }];
+    state.preps = [{ id: 1, name: 'Преп один', lead: 'Раз' }, { id: 2, name: 'Преп два', lead: 'Два' }, { id: 3, name: 'Преп отдельно' }];
+    for (var mergeRoot = 0; mergeRoot < 2; mergeRoot++) for (var mergeStep = 0; mergeStep < 8; mergeStep++) {
+      var mergeId = mergeRoot * 8 + mergeStep + 1;
+      state.nodes[mergeId] = { id: mergeId, movementId: mergeStep ? 3 : mergeRoot + 1,
+        parentId: mergeStep ? mergeId - 1 : null, beat: mergeStep * 4 + 1, length: 4,
+        prepId: mergeStep === 1 ? mergeRoot + 1 : null };
+      state.nodeOrder.push(mergeId);
+    }
+    state.nodes[17] = { id: 17, movementId: 3, parentId: 1, beat: 5, length: 4, prepId: 2 };
+    state.nodeOrder.push(17); state.roots = [1,9]; state.activePath = [1];
+    state.treePins.nodes[9] = { dx: 500, dy: 250 };
+    state.treePins.preps = { '1:1': { dx: 80, dy: 40 }, '1:2': { dx: 140, dy: 60 } };
+    state.treePins.links = { 'p:1:1': { shape: 'curve', hx: 5, hy: 10 }, 'p:1:2': { shape: 'bus', ex: 77 }, 'c:2': { shape: 'curve', hx: 9, hy: 11 } };
+    state.prepDefaultsVersion = 1; state.collapsedPrepLinks = ['1:1'];
+    state.comboFolders = [{ id: 1, name: 'Папка', parentId: null }];
+    var mergeCombo = collectCombos().find(function (c) { return c[0].id === 1; });
+    var mergeOldKey = comboVideoKey(mergeCombo);
+    state.comboVideos[mergeOldKey] = ['https://example.com/video']; state.comboDescriptions[mergeOldKey] = 'Описание комбинации';
+    state.comboDescriptionSegments[mergeOldKey] = [{ text: 'Описание комбинации' }]; state.comboFolderLinks[mergeOldKey] = [1];
+    state.currentView = 'library'; render();
+    q('#btnMergeMovement').click();
+    q('#movList [data-movement-id="1"] input').click();
+    check('объединение требует выбрать не менее двух движений', function () { return q('#btnReviewMergeMovement').disabled; });
+    q('#movementLibrarySearch').value = 'два'; renderMovements();
+    q('#movList [data-movement-id="2"] input').click();
+    check('выбор для объединения сохраняется при фильтрации библиотеки', function () {
+      return libraryMergeSelection.ids.size === 2 && !q('#btnReviewMergeMovement').disabled;
+    });
+    q('#btnReviewMergeMovement').click();
+    check('подтверждение перечисляет выбранные движения и предлагает их названия', function () {
+      return qa('#libraryMergeSources li').length === 2 && q('#libraryMergeName').options.length === 3;
+    });
+    var mergeBefore = JSON.stringify(state);
+    q('#libraryMergeName').value = 'new'; updateLibraryMergeName();
+    q('#libraryMergeCustomName').value = 'Отдельное';
+    check('объединение не допускает конфликт имени с невыбранной записью', function () {
+      return !confirmLibraryMerge() && JSON.stringify(state) === mergeBefore && q('#libraryMergeError').textContent.includes('вне выбранных');
+    });
+    q('#libraryMergeCustomName').value = '  ';
+    check('пустое итоговое название не меняет данные', function () { return !confirmLibraryMerge() && JSON.stringify(state) === mergeBefore; });
+    q('#btnBackLibraryMerge').click();
+    check('возврат из подтверждения сохраняет выбор без изменения данных', function () {
+      return libraryMergeSelection.ids.size === 2 && JSON.stringify(state) === mergeBefore;
+    });
+    openLibraryMergeReview(); q('#libraryMergeName').value = '2';
+    var mergeStateBeforeFailure = state;
+    var mergeStorageWrite = Storage.prototype.setItem;
+    Storage.prototype.setItem = function () { throw new DOMException('full', 'QuotaExceededError'); };
+    check('отказ записи откатывает объединение и сохраняет выбор для повтора', function () {
+      return !confirmLibraryMerge() && state === mergeStateBeforeFailure && state.movements.length === 3
+        && libraryMergeSelection.ids.size === 2 && q('#libraryMergeModal').classList.contains('open');
+    });
+    Storage.prototype.setItem = mergeStorageWrite;
+    check('движения объединяются с выбранным существующим названием', function () {
+      return confirmLibraryMerge() && state.movements.length === 2 && !getMovement(1) && getMovement(2).name === 'Дубль два';
+    });
+    check('все узлы заменены без удаления веток, счётов и закреплений', function () {
+      return state.nodes[1].movementId === 2 && state.nodes[9].movementId === 2 && Object.keys(state.nodes).length === 17
+        && state.nodes[8].beat === 29 && state.nodes[8].parentId === 7 && state.treePins.nodes[9].dx === 500;
+    });
+    check('описания объединяются без дублей с сохранением @-сегментов', function () {
+      return getMovement(2).lead === 'Вести' && getMovement(2).leadSegments[0].conceptId === 'w1'
+        && getMovement(2).follow.includes('Первое описание') && getMovement(2).follow.includes('Второе описание');
+    });
+    var mergeNewKey = comboVideoKey(collectCombos().find(function (c) { return c[0].id === 1; }));
+    var mergeFirstKey = comboVideoKey(collectCombos().find(function (c) { return c[0].id === 9; }));
+    check('видео, описания и папки комбинаций сохраняются после объединения движений', function () {
+      return state.comboVideos[mergeNewKey][0] === 'https://example.com/video' && state.comboDescriptions[mergeNewKey] === 'Описание комбинации'
+        && state.comboFolderLinks[mergeNewKey][0] === 1 && !!state.comboDescriptionSegments[mergeNewKey]
+        && mergeFirstKey.split('|')[0].split(':')[1] === '2' && mergeOldKey !== mergeNewKey && !state.comboVideos[mergeOldKey];
+    });
+    setView('preps'); startLibraryMerge('prep');
+    q('#prepList [data-prep-id="1"] input').click(); q('#prepList [data-prep-id="2"] input').click();
+    openLibraryMergeReview(); q('#libraryMergeName').value = '2';
+    check('объединение препов заменяет все входящие связи', function () {
+      return confirmLibraryMerge() && state.preps.length === 2 && !getPrep(1)
+        && state.nodes[2].prepId === 2 && state.nodes[10].prepId === 2 && state.nodes[17].prepId === 2;
+    });
+    check('объединение групп препа сохраняет закрепления итоговой группы и форму связей детей', function () {
+      return state.treePins.preps['1:2'].dx === 140 && !state.treePins.preps['1:1']
+        && state.treePins.links['p:1:2'].ex === 77 && state.treePins.links['c:2'].hx === 9
+        && !state.collapsedPrepLinks.includes('1:1') && !state.collapsedPrepLinks.includes('1:2');
+    });
+    check('объединение препов не отвязывает метаданные комбинаций', function () {
+      return state.comboVideos[mergeNewKey][0] === 'https://example.com/video' && state.comboFolderLinks[mergeNewKey][0] === 1;
+    });
+    startLibraryMerge('prep');
+    libraryMergeSelection.ids = new Set([2,3]); openLibraryMergeReview();
+    q('#libraryMergeName').value = 'new'; updateLibraryMergeName(); q('#libraryMergeCustomName').value = 'Общий преп';
+    check('новое название объединённых препов сохраняется', function () {
+      return confirmLibraryMerge() && state.preps.length === 1 && state.preps[0].name === 'Общий преп';
+    });
+    state = savedTreeState; cancelLibraryMerge(); clearTreeSearch(); render();
     await runDriveTests(check);
     if (window.userImportFixture) {
       check('пользовательский файл импортируется целиком', function () {

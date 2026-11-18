@@ -7,7 +7,7 @@ const SERVER_API_BASE = typeof window !== 'undefined' && typeof window.DANCE_API
    с ?v=… у всех css/js в index.html (проверяет tests/run-tests.js). Меняется
    при каждой правке js/css: иначе браузер (GitHub Pages кэширует на 10 минут)
    может взять новую страницу со старыми скриптами. */
-const APP_VERSION = '2026-11-18.5';
+const APP_VERSION = '2026-11-18.6';
 
 // Владелец приложения настраивает один раз перед публикацией. Это публичные
 // браузерные реквизиты, не client secret. Пользователям вводить их не нужно.
